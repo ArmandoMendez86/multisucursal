@@ -88,6 +88,46 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   let allProducts = [];
+  // Only render the first N products when the page loads to avoid
+  // overloading the browser with thousands of product cards at once.  The
+  // user can still search the complete list of products by name, SKU or
+  // barcode.  Adjust PRODUCTS_TO_SHOW if you want to increase or decrease
+  // how many items are rendered initially.
+  const PRODUCTS_TO_SHOW = 20;
+
+  // When a product list is loaded we build a lookup table that maps both
+  // SKU values and each individual barcode to the product object.  This
+  // table is used by the barcode scanner so that a scan does not need to
+  // iterate over every product in the allProducts array.  Searching the
+  // object is O(1) which makes scans instantaneous even on large
+  // product catalogues.
+  let skuBarcodeMap = {};
+
+  /**
+   * Build a lookup table keyed by SKU and barcode.
+   *
+   * @param {Array} products Array of product objects returned by the API.
+   */
+  function buildSkuBarcodeMap(products) {
+    skuBarcodeMap = {};
+    products.forEach((product) => {
+      // map the SKU if present
+      if (product.sku) {
+        const skuKey = String(product.sku).trim();
+        skuBarcodeMap[skuKey] = product;
+      }
+      // map each barcode; codigos_barras may be a comma-separated string
+      if (product.codigos_barras) {
+        product.codigos_barras
+          .split(',')
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0)
+          .forEach((code) => {
+            skuBarcodeMap[code] = product;
+          });
+      }
+    });
+  }
   let cart = [];
   let selectedClient = {
     id: 1,
@@ -108,7 +148,12 @@ document.addEventListener("DOMContentLoaded", function () {
       const result = await response.json();
       if (result.success) {
         allProducts = result.data;
-        renderProducts(allProducts);
+        // Build the lookup map once products are loaded
+        buildSkuBarcodeMap(allProducts);
+        // Show only the first PRODUCTS_TO_SHOW items in the UI.  The
+        // complete list remains in allProducts so that searching and
+        // barcode scanning still work against the full catalogue.
+        renderProducts(allProducts.slice(0, PRODUCTS_TO_SHOW));
       } else {
         productListContainer.innerHTML = `<p class="text-red-500">Error al cargar productos.</p>`;
       }
@@ -278,11 +323,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function filterProducts() {
       const query = searchProductInput.value.toLowerCase();
-      const filtered = allProducts.filter(p => {
-          const barcodes = (p.codigos_barras || '').toLowerCase();
-          return p.nombre.toLowerCase().includes(query) ||
-                 (p.sku && p.sku.toLowerCase().includes(query)) ||
-                 barcodes.includes(query); // MODIFICADO: Busca en la cadena de códigos
+      // If there is no search term, only display the first PRODUCTS_TO_SHOW items.
+      if (!query) {
+        renderProducts(allProducts.slice(0, PRODUCTS_TO_SHOW));
+        return;
+      }
+      const filtered = allProducts.filter((p) => {
+        const barcodes = (p.codigos_barras || '').toLowerCase();
+        return (
+          p.nombre.toLowerCase().includes(query) ||
+          (p.sku && String(p.sku).toLowerCase().includes(query)) ||
+          barcodes.includes(query)
+        );
       });
       renderProducts(filtered);
   }
@@ -292,21 +344,23 @@ document.addEventListener("DOMContentLoaded", function () {
       event.preventDefault();
       const code = searchProductInput.value.trim();
       if (code === "") return;
-
-      // MODIFICADO: Lógica de búsqueda mejorada
-      // Busca si algún producto tiene el código escaneado en su lista de códigos de barras
-      const product = allProducts.find(p => {
-          if (p.sku === code) return true;
-          const barcodes = (p.codigos_barras || '').split(',').map(b => b.trim());
-          return barcodes.includes(code);
-      });
-      
+      // Utiliza la tabla de búsqueda construida para encontrar el producto por
+      // SKU o código de barras de forma instantánea.  Si no existe en el
+      // mapa, se muestra un mensaje de error.
+      const product = skuBarcodeMap[code] || null;
       if (product) {
-          addProductToCart(product.id);
-          searchProductInput.value = "";
-          filterProducts(); // Llama a filter para resetear la lista visual
+        addProductToCart(product.id);
+        searchProductInput.value = "";
+        // Cuando se agrega un producto por escaneo de código de barras,
+        // restablece la lista visual.  Si la entrada está vacía se
+        // mostrarán nuevamente los primeros productos, de lo contrario la
+        // búsqueda se filtrará correctamente.
+        filterProducts();
       } else {
-          showToast("Producto no encontrado por SKU o código de barras.", "error");
+        showToast(
+          "Producto no encontrado por SKU o código de barras.",
+          "error"
+        );
       }
   }
 
