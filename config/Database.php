@@ -8,7 +8,7 @@ class Database
      private $host = 'localhost';
      private $db_name = 'megaparty';
      private $username = 'root';
-     private $password = 'linux';
+     private $password = 'Linux861215';
      private $conn;
 
   
