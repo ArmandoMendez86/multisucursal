@@ -310,7 +310,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="flex items-center ml-2">
                 <div class="quantity-controls">
                     <button data-id="${item.id}" class="quantity-change" data-action="decrease">-</button>
-                    <input type="number" min="1" class="quantity-input w-16 bg-gray-600 text-white rounded text-center text-sm px-1 mx-1 focus:outline-none focus:ring-1 focus:ring-blue-400" data-id="${item.id}" value="${item.quantity}" />
+                    <span>${item.quantity}</span>
                     <button data-id="${item.id}" class="quantity-change" data-action="increase">+</button>
                 </div>
                 <div class="text-right font-mono text-base ml-2 line-total" data-id="${item.id}">$${(item.quantity * item.precio_final).toFixed(2)}</div>
@@ -623,50 +623,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  
-  // Permitir editar cantidad directamente en el input
-  function handleQuantityInput(event) {
-    const input = event.target.closest(".quantity-input");
-    if (!input) return;
-    const id = input.dataset.id;
-    let val = parseInt(input.value, 10);
-    if (isNaN(val)) return; // permitir escribir
-    if (val < 1) val = 1;
-    const item = cart.find((i) => i.id == id);
-    if (!item) return;
-    const product = allProducts.find((p) => p.id == id);
-    if (product && typeof product.stock === "number") {
-      if (val > product.stock) val = product.stock;
-    }
-    item.quantity = val;
-    // Actualiza total por línea sin re-render completo
-    const line = cartItemsContainer.querySelector(`.line-total[data-id="${id}"]`);
-    if (line) line.textContent = `$${(item.quantity * item.precio_final).toFixed(2)}`;
-    updateTotals();
-  }
-
-  function handleQuantityCommit(event) {
-    const input = event.target.closest(".quantity-input");
-    if (!input) return;
-    const id = input.dataset.id;
-    let val = parseInt(input.value, 10);
-    if (isNaN(val) || val < 1) val = 1;
-    const item = cart.find((i) => i.id == id);
-    if (!item) return;
-    const product = allProducts.find((p) => p.id == id);
-    if (product && typeof product.stock === "number" && val > product.stock) {
-      val = product.stock;
-      showToast("Stock máximo alcanzado en el carrito.", "error");
-    }
-    if (val === 0) {
-      cart = cart.filter((it) => it.id != id);
-      renderCart();
-      return;
-    }
-    item.quantity = val;
-    renderCart(); // re-render para mantener select de precio y botones en sync
-  }
-function handleQuantityChange(event) {
+  function handleQuantityChange(event) {
     const button = event.target.closest(".quantity-change");
     if (!button) return;
     const productId = button.dataset.id;
@@ -1533,7 +1490,112 @@ function handleQuantityChange(event) {
     }
   });
 
-  cartItemsContainer.addEventListener("click", function (event) {
+  
+  // --- Edición en línea de cantidad y precio ---
+  async function maybeSaveSpecialPrice(productId, newPrice) {
+    if (selectedClient && selectedClient.id !== 1) {
+      try {
+        const response = await fetch(`${BASE_URL}/saveSpecialClientPrice`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id_cliente: selectedClient.id,
+            id_producto: productId,
+            precio_especial: newPrice,
+          }),
+        });
+        const result = await response.json();
+        if (result && result.success) {
+          showToast("Precio especial guardado para " + selectedClient.nombre, "success");
+        } else if (result && result.message) {
+          showToast(result.message, "info");
+        }
+      } catch (e) {
+        console.error("Error al guardar precio especial", e);
+      }
+    }
+  }
+
+  function updateLineTotalUI(productId) {
+    const item = cart.find((i) => String(i.id) === String(productId));
+    const line = cartItemsContainer.querySelector(`.line-total[data-id="${productId}"]`);
+    if (item && line) {
+      line.textContent = `$${(item.quantity * item.precio_final).toFixed(2)}`;
+    }
+  }
+
+  function handleInlineEditInput(event) {
+    const qInput = event.target.closest(".quantity-input");
+    const pInput = event.target.closest(".price-input");
+    if (!qInput && !pInput) return;
+
+    if (qInput) {
+      const id = qInput.dataset.id;
+      let val = parseInt(qInput.value, 10);
+      if (isNaN(val)) return; // permitir que el usuario siga escribiendo
+      if (val < 1) val = 1;
+      const item = cart.find((i) => String(i.id) === String(id));
+      if (!item) return;
+      const product = allProducts.find((p) => String(p.id) === String(id));
+      if (product && typeof product.stock === "number") {
+        if (val > product.stock) val = product.stock;
+      }
+      item.quantity = val;
+      updateTotals();
+      updateLineTotalUI(id);
+    }
+
+    if (pInput) {
+      const id = pInput.dataset.id;
+      let price = parseFloat(pInput.value);
+      if (isNaN(price) || price <= 0) return;
+      const item = cart.find((i) => String(i.id) === String(id));
+      if (!item) return;
+      item.precio_final = price;
+      item.tipo_precio_aplicado = "Especial";
+      updateTotals();
+      updateLineTotalUI(id);
+    }
+  }
+
+  async function handleInlineEditCommit(event) {
+    const qInput = event.target.closest(".quantity-input");
+    const pInput = event.target.closest(".price-input");
+    if (!qInput && !pInput) return;
+
+    if (qInput) {
+      const id = qInput.dataset.id;
+      let val = parseInt(qInput.value, 10);
+      if (isNaN(val) || val < 1) val = 1;
+      const item = cart.find((i) => String(i.id) === String(id));
+      if (!item) return;
+      const product = allProducts.find((p) => String(p.id) === String(id));
+      if (product && typeof product.stock === "number" && val > product.stock) {
+        val = product.stock;
+        showToast("Stock máximo alcanzado en el carrito.", "error");
+      }
+      item.quantity = val;
+      renderCart();
+    }
+
+    if (pInput) {
+      const id = pInput.dataset.id;
+      let price = parseFloat(pInput.value);
+      if (isNaN(price) || price <= 0) {
+        const item = cart.find((i) => String(i.id) === String(id));
+        if (item) pInput.value = item.precio_final.toFixed(2);
+        showToast("El precio debe ser un número positivo.", "error");
+        return;
+      }
+      const item = cart.find((i) => String(i.id) === String(id));
+      if (!item) return;
+      item.precio_final = price;
+      item.tipo_precio_aplicado = "Especial";
+      await maybeSaveSpecialPrice(id, price);
+      renderCart();
+    }
+  }
+cartItemsContainer.addEventListener("click", function (event) {
     const quantityButton = event.target.closest(".quantity-change");
     const removeButton = event.target.closest(".remove-item-btn");
 
@@ -1543,10 +1605,10 @@ function handleQuantityChange(event) {
       removeProductFromCart(removeButton.dataset.id);
     }
   
-  // Listeners para edición directa de cantidad
-  cartItemsContainer.addEventListener("input", handleQuantityInput);
-  cartItemsContainer.addEventListener("change", handleQuantityCommit);
-  cartItemsContainer.addEventListener("blur", handleQuantityCommit, true);
+  // Eventos delegados para inputs de cantidad y precio
+  cartItemsContainer.addEventListener("input", handleInlineEditInput);
+  cartItemsContainer.addEventListener("change", handleInlineEditCommit);
+  cartItemsContainer.addEventListener("blur", handleInlineEditCommit, true);
 });
 
   cancelSaleBtn.addEventListener("click", cancelSale);

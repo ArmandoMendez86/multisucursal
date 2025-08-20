@@ -165,10 +165,13 @@ class Venta
         if (!$resultado['header']) return null;
 
         // 2. Get details (cart products)
-        $query_items = "SELECT vd.*, p.nombre, p.precio_menudeo, p.precio_mayoreo, p.sku, p.codigo_barras
+        $query_items = "SELECT vd.*, p.nombre, p.precio_menudeo, p.precio_mayoreo, p.sku,
+                               GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') AS codigos_barras
                         FROM venta_detalles vd
                         JOIN productos p ON vd.id_producto = p.id
-                        WHERE vd.id_venta = :id_venta";
+                        LEFT JOIN producto_codigos pc ON p.id = pc.id_producto
+                        WHERE vd.id_venta = :id_venta
+                        GROUP BY vd.id, vd.id_venta, vd.id_producto, vd.cantidad, vd.precio_unitario, vd.subtotal, p.nombre, p.precio_menudeo, p.precio_mayoreo, p.sku";
         $stmt_items = $this->conn->prepare($query_items);
         $stmt_items->bindParam(':id_venta', $id_venta);
         $stmt_items->execute();

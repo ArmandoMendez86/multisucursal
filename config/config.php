@@ -1,4 +1,4 @@
 <?php
 
 
-define('URL', '/multisucursal/');
+define('URL', '/multi-sucursal/');

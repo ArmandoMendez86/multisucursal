@@ -42,17 +42,11 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
     .product-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(100px, auto));
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
       gap: 0.75rem;
       padding: 0.25rem;
       overflow-y: auto;
       flex: 1;
-
-      /* <- añade esto */
-      align-content: start;
-      /* evita que las filas se estiren para llenar el alto */
-      align-items: start;
-      /* evita que los ítems se estiren dentro de la celda */
     }
 
     .product-card {
@@ -310,19 +304,19 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
   <?php include_once '../parciales/navegacion.php'; ?>
 
   <main class="flex-1 flex flex-col overflow-hidden">
-
+    
     <!-- MODIFICADO: Encabezado ahora se oculta en el breakpoint 'lg' -->
     <header class="lg:hidden flex items-center justify-between bg-[#1e293b] p-4 shadow-md flex-shrink-0">
-      <button id="mobile-menu-button" class="text-white focus:outline-none">
-        <i class="fas fa-bars text-2xl"></i>
-      </button>
-      <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
-      <div class="w-8"></div>
+        <button id="mobile-menu-button" class="text-white focus:outline-none">
+            <i class="fas fa-bars text-2xl"></i>
+        </button>
+        <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
+        <div class="w-8"></div>
     </header>
-
+    
     <!-- MODIFICADO: Contenedor de columnas ahora usa el breakpoint 'lg' -->
     <div class="flex-1 flex lg:flex-row flex-col overflow-y-auto">
-
+      
       <!-- MODIFICADO: Columna Izquierda ahora usa el breakpoint 'lg' -->
       <div class="lg:w-2/5 w-full flex flex-col p-4">
         <div class="mb-4 flex gap-2">
@@ -337,7 +331,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             <i class="fas fa-globe"></i>
           </button>
         </div>
-        <div id="product-list" class="product-grid "></div>
+        <div id="product-list" class="product-grid"></div>
       </div>
 
       <!-- MODIFICADO: Columna Derecha ahora usa el breakpoint 'lg' -->
@@ -373,13 +367,12 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             <div class="flex-shrink-0">
               <label class="block text-xs font-medium mb-1 text-gray-400">Tipo de Precio</label>
               <div id="price-type-selector" class="flex items-center bg-gray-800 rounded-lg p-1 border border-gray-700">
-                <button data-level="1" class="price-type-btn active-price-type px-4 py-2 text-sm font-semibold rounded-md">P1</button>
-                <button data-level="2" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P2</button>
-                <button data-level="3" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P3</button>
-                <button data-level="4" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P4</button>
-                <button data-level="5" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P5</button>
+                <button data-price-type="menudeo"
+                  class="price-type-btn active-price-type px-4 py-2 text-sm font-semibold rounded-md">Menudeo</button>
+                <button data-price-type="mayoreo"
+                  class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">Mayoreo</button>
               </div>
-              <input type="hidden" id="price-type-value" value="1">
+              <input type="hidden" id="price-type-value" value="menudeo">
             </div>
           </div>
 
@@ -609,13 +602,13 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       </form>
     </div>
   </div>
-
+  
   <!-- Scripts -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2/qz-tray.min.js"></script>
   <script src="js/qz-tray-handler.js"></script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
   <script src="js/rutas.js"></script>
   <script src="js/toast.js"></script>
   <script src="js/confirm.js"></script>

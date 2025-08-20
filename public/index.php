@@ -27,7 +27,8 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'getProductByBarcode',
         'adjustStock',
         'getInventoryMovements',
-        'getStockAcrossBranches'
+        'getStockAcrossBranches',
+        'searchProducts'
     ])
 ) {
     require_once __DIR__ . '/../app/controllers/ProductoController.php';
@@ -56,7 +57,8 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 } elseif (in_array($action, ['getExpenses', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) {
     require_once __DIR__ . '/../app/controllers/GastoController.php';
     $controller = new GastoController();
-} elseif (in_array($action, ['getSalesReport', 'getCashCut', 'getDetailedExpenses', 'getDetailedClientPayments', 'getGlobalSalesReport'])) {
+} elseif (in_array($action, ['getSalesReport',
+        'getSalesReportPaginated', 'getCashCut', 'getDetailedExpenses', 'getDetailedClientPayments', 'getGlobalSalesReport'])) {
     require_once __DIR__ . '/../app/controllers/ReporteController.php';
     $controller = new ReporteController();
 } elseif (in_array($action, ['checkApertura', 'registrarApertura', 'getMontoApertura'])) {
@@ -146,6 +148,9 @@ switch ($action) {
         break;
     case 'getStockAcrossBranches':
         $controller->getStockAcrossBranches();
+        break;
+    case 'searchProducts':
+        $controller->searchProducts();
         break;
 
     // --- RUTAS DE CATÁLOGOS (CATEGORÍAS Y MARCAS) ---
@@ -249,6 +254,9 @@ switch ($action) {
     // --- RUTAS DE REPORTES ---
     case 'getSalesReport':
         $controller->getVentas();
+        break;
+    case 'getSalesReportPaginated':
+        $controller->getSalesReportPaginated();
         break;
     case 'getCashCut':
         $controller->getCorteCaja();

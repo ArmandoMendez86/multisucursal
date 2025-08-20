@@ -52,6 +52,11 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             background: #718096;
         }
     </style>
+
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+
 </head>
 
 <body class="bg-[#0f172a] text-gray-300">
@@ -76,8 +81,8 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             </div>
 
             <div class="bg-[#1e293b] rounded-lg shadow overflow-hidden">
-                <div class="overflow-x-auto">
-                    <table class="min-w-full">
+                <div class="overflow-x-auto mb-8 p-4">
+                    <table id="clientesTable" class="min-w-full">
                         <thead class="bg-gray-800 text-xs text-gray-400 uppercase">
                             <tr>
                                 <th class="py-3 px-6 text-left">Nombre</th>
@@ -209,6 +214,17 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <script src="js/rutas.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/confirm.js"></script>
+    
+    <!-- jQuery and DataTables + Buttons -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+
     <script src="js/clientes.js"></script>
      <script>
     document.addEventListener('DOMContentLoaded', function() {

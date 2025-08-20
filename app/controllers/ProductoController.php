@@ -58,7 +58,9 @@ class ProductoController
         }
         try {
             $id_sucursal = $_SESSION['branch_id'];
-            $productos = $this->productoModel->getAll($id_sucursal);
+            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : null;
+            $offset = isset($_GET['offset']) ? intval($_GET['offset']) : null;
+            $productos = $this->productoModel->getAll($id_sucursal, $limit, $offset);
             echo json_encode(['success' => true, 'data' => $productos]);
         } catch (Exception $e) {
             http_response_code(500);
@@ -317,6 +319,29 @@ class ProductoController
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
+        }
+    }
+    public function searchProducts()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
+            return;
+        }
+        $q = isset($_GET['q']) ? trim($_GET['q']) : '';
+        $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
+        $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
+        if ($limit <= 0 || $limit > 200) $limit = 50;
+        if ($offset < 0) $offset = 0;
+
+        try {
+            $id_sucursal = $_SESSION['branch_id'];
+            $productos = $this->productoModel->search($id_sucursal, $q, $limit, $offset);
+            echo json_encode(['success' => true, 'data' => $productos]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Error al buscar productos.']);
         }
     }
 }

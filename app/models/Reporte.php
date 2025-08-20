@@ -207,4 +207,102 @@ class Reporte
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+    public function getSalesReportPaginated($id_sucursal, $startDate, $endDate, $userFilter, $searchValue, $orderColIdx, $orderDir, $start, $length)
+    {
+        // Map DataTables column index to DB column
+        $columns = ['v.fecha', 'v.id', 'c.nombre', 'u.nombre', 'v.total', 'v.estado'];
+        $orderBy = $columns[$orderColIdx] ?? 'v.fecha';
+        $orderDir = strtoupper($orderDir) === 'ASC' ? 'ASC' : 'DESC';
+
+        $where = " WHERE v.id_sucursal = :id_sucursal ";
+        $params = [':id_sucursal' => $id_sucursal];
+
+        if ($startDate !== '' && $endDate !== '') {
+            $where .= " AND v.fecha BETWEEN :startDate AND :endDate ";
+            $params[':startDate'] = $startDate . " 00:00:00";
+            $params[':endDate']   = $endDate   . " 23:59:59";
+        }
+
+        if ($userFilter !== '' && $userFilter !== null) {
+            $where .= " AND v.id_usuario = :userFilter ";
+            $params[':userFilter'] = $userFilter;
+        }
+
+        // Base query
+        $base = " FROM ventas v
+                  JOIN clientes c ON v.id_cliente = c.id
+                  JOIN usuarios u ON v.id_usuario = u.id ";
+
+        // recordsTotal (sin search)
+        $sqlTotal = "SELECT COUNT(*) as cnt " . $base . $where;
+        $stmt = $this->conn->prepare($sqlTotal);
+        foreach ($params as $k => $v) $stmt->bindValue($k, $v);
+        $stmt->execute();
+        $recordsTotal = (int)($stmt->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
+
+        // Search
+        $recordsFiltered = $recordsTotal;
+        $whereSearch = $where;
+        $paramsSearch = $params;
+        if ($searchValue !== '') {
+            $whereSearch .= " AND (c.nombre LIKE :search OR u.nombre LIKE :search OR v.id LIKE :search OR v.estado LIKE :search) ";
+            $paramsSearch[':search'] = '%' . $searchValue . '%';
+            $sqlCount = "SELECT COUNT(*) as cnt " . $base . $whereSearch;
+            $stmt2 = $this->conn->prepare($sqlCount);
+            foreach ($paramsSearch as $k => $v) $stmt2->bindValue($k, $v);
+            $stmt2->execute();
+            $recordsFiltered = (int)($stmt2->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
+        }
+
+        // Data page
+        $sqlData = "SELECT v.id, v.fecha, v.total, v.estado, c.nombre as cliente, u.nombre as usuario "
+            . $base . $whereSearch
+            . " ORDER BY $orderBy $orderDir LIMIT :start, :length";
+
+        $stmt3 = $this->conn->prepare($sqlData);
+        foreach ($paramsSearch as $k => $v) $stmt3->bindValue($k, $v);
+        $stmt3->bindValue(':start', intval($start), PDO::PARAM_INT);
+        $stmt3->bindValue(':length', intval($length), PDO::PARAM_INT);
+        $stmt3->execute();
+        $rows = $stmt3->fetchAll(PDO::FETCH_ASSOC);
+
+        // Construir columna Acciones (iconos y clases originales)
+        $data = [];
+        foreach ($rows as $r) {
+            $acciones = '';
+            $estado = $r['estado'] ?? 'Completada';
+            if ($estado === 'Completada') {
+                $acciones = '<div class="flex items-center space-x-2">'
+                    . '<button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-lg text-xs print-ticket-win-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Imprimir (Windows)"><i class="fas fa-print"></i></button>'
+                    . '<button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-lg text-xs print-ticket-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Imprimir Ticket"><i class="fas fa-receipt"></i></button>'
+                    . '<button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded-lg text-xs view-pdf-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Ver PDF"><i class="fas fa-file-pdf"></i></button>'
+                    . '<button class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-xs cancel-sale-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Cancelar Venta"><i class="fas fa-times-circle"></i></button>'
+                    . '</div>';
+            } elseif ($estado === 'Pendiente') {
+                $acciones = '<span class="text-gray-500 text-xs">N/A</span>';
+            } elseif ($estado === 'Cancelada') {
+                $acciones = '<span class="text-gray-500 text-xs">Cancelada</span>';
+            } elseif ($estado === 'Cotizacion') {
+                $acciones = '<div class="flex items-center space-x-2">'
+                    . '<button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded-lg text-xs view-pdf-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Ver Cotización PDF"><i class="fas fa-file-pdf"></i></button>'
+                    . '</div>';
+            }
+
+            $data[] = [
+                'fecha' => $r['fecha'],
+                'id' => $r['id'],
+                'cliente' => $r['cliente'],
+                'usuario' => $r['usuario'],
+                'total' => $r['total'],
+                'estado' => $r['estado'],
+                'acciones' => $acciones
+            ];
+        }
+
+        return [
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data
+        ];
+    }
 }

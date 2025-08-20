@@ -1,4 +1,27 @@
 document.addEventListener("DOMContentLoaded", function () {
+  // --- DataTables helper (export buttons) ---
+  function initOrRefreshDataTable() {
+    if (!window.jQuery || !$.fn || !$.fn.dataTable) {
+      return; // DataTables not loaded yet
+    }
+    var $table = jQuery('#clientesTable');
+    if (jQuery.fn.dataTable.isDataTable($table)) {
+      $table.DataTable().destroy();
+    }
+    $table.DataTable({
+      dom: 'Bfrtip',
+      buttons: [
+        { extend: 'copyHtml5', text: 'Copiar', exportOptions: { columns: [0,1,2,3] } },
+        { extend: 'excelHtml5', title: 'Clientes', exportOptions: { columns: [0,1,2,3] } },
+        { extend: 'csvHtml5', title: 'Clientes', exportOptions: { columns: [0,1,2,3] } },
+        { extend: 'pdfHtml5', title: 'Clientes', exportOptions: { columns: [0,1,2,3] } },
+        { extend: 'print', text: 'Imprimir', exportOptions: { columns: [0,1,2,3] } }
+      ],
+      language: { url: 'https://cdn.datatables.net/plug-ins/1.13.8/i18n/es-ES.json' },
+      order: []
+    });
+  }
+
   // --- Referencias a elementos del DOM ---
   const addClientBtn = document.getElementById("add-client-btn");
   const clientModal = document.getElementById("client-modal");
@@ -55,7 +78,9 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error("Error al obtener los clientes del servidor.");
       const result = await response.json();
       renderClients(result.success ? result.data : []);
-    } catch (error) {
+    
+      initOrRefreshDataTable();
+} catch (error) {
       console.error("Error en fetchClients:", error);
       clientsTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-red-500">No se pudo conectar con el servidor.</td></tr>`;
     }

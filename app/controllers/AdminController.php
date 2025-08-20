@@ -60,7 +60,7 @@ class AdminController {
             return;
         }
         try {
-            if ($this->sucursalModel->update($data)) {
+            if ($this->sucursalModel->update($data['id'], $data)) {
                 echo json_encode(['success' => true, 'message' => 'Sucursal actualizada.']);
             } else {
                  throw new Exception("No se pudo actualizar la sucursal.");

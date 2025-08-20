@@ -1,6 +1,118 @@
 // Archivo: /public/js/reportes.js
 
 document.addEventListener("DOMContentLoaded", function () {
+  // --- DataTables server-side for Sales Report ---
+  let ventasDataTable = null;
+
+  function initSalesDataTable() {
+    const tabla = $('#tablaVentas');
+    if (ventasDataTable) {
+      ventasDataTable.ajax.reload();
+      return;
+    }
+    ventasDataTable = tabla.DataTable({
+      serverSide: true,
+      processing: true,
+      searching: true, // DataTables search box
+      lengthMenu: [10, 25, 50, 100],
+      pageLength: 25,
+      ajax: {
+        url: `${BASE_URL}/getSalesReportPaginated`,
+        type: 'GET',
+        data: function (d) {
+          // Añadir filtros propios
+          d.startDate = startDateInput.value || '';
+          d.endDate = endDateInput.value || '';
+          const userSel = document.getElementById('user-filter-select');
+          d.user_id = userSel ? (userSel.value === 'all' ? '' : userSel.value) : '';
+        }
+      },
+      columns: [
+        { data: 'fecha', title: 'Fecha' },
+        { data: 'id', title: 'Ticket ID' },
+        { data: 'cliente', title: 'Cliente' },
+        { data: 'usuario', title: 'Vendedor' },
+
+        // <<< Total en verde como el diseño original
+        {
+          data: 'total',
+          title: 'Total',
+          className: 'dt-right',
+          render: function (val, type) {
+            // formateo para display/filtrado, pero conserva el valor crudo para ordenamiento
+            if (type === 'display' || type === 'filter') {
+              const n = parseFloat(val || 0);
+              const f = n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              return `<span class="text-green-400 font-semibold">$${f}</span>`;
+            }
+            return val;
+          }
+        },
+
+        // Etiqueta de estado con “chip” (opcional, igual al estilo anterior)
+        {
+          data: 'estado',
+          title: 'Estado',
+          render: function (val) {
+            const chip =
+              val === 'Completada' ? 'bg-emerald-600/20 text-emerald-300' :
+                val === 'Cancelada' ? 'bg-red-600/20 text-red-300' :
+                  'bg-amber-600/20 text-amber-300';
+            return `<span class="px-2 py-0.5 rounded-full text-xs ${chip}">${val}</span>`;
+          }
+        },
+
+        { data: 'acciones', title: 'Acciones', orderable: false, searchable: false, className: 'text-center' }
+      ],
+
+      order: [[0, 'desc']],
+      dom: 'Bfrtip',
+      buttons: [
+        { extend: 'csvHtml5', text: 'CSV', title: 'reporte_ventas' },
+        { extend: 'excelHtml5', text: 'Excel', title: 'reporte_ventas' },
+        { extend: 'pdfHtml5', text: 'PDF', title: 'reporte_ventas', orientation: 'landscape', pageSize: 'A4' },
+        { extend: 'print', text: 'Imprimir' }
+      ],
+      language: {
+        url: 'https://cdn.datatables.net/plug-ins/1.13.6/i18n/es-ES.json'
+      }
+    });
+    // Delegación de eventos con clases originales
+    $(document).on('click', '#tablaVentas .print-ticket-btn', function (e) {
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { handlePrintTicket(parseInt(id, 10)); }
+    });
+    $(document).on('click', '#tablaVentas .print-ticket-win-btn', async function (e) {
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { await handlePrintTicketViaDialog(parseInt(id, 10)); }
+    });
+    $(document).on('click', '#tablaVentas .view-pdf-btn', function (e) {
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { handleViewPdf(parseInt(id, 10)); }
+    });
+    $(document).on('click', '#tablaVentas .cancel-sale-btn', async function (e) {
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { await cancelSale(parseInt(id, 10)); }
+    });
+
+    // Delegar clics en acciones de la tabla (DataTables genera/renueva el DOM)
+    $(document).on('click', '#tablaVentas button[data-action="view-ticket"]', function (e) {
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { handlePrintTicket(parseInt(id, 10)); }
+    });
+    $(document).on('click', '#tablaVentas button[data-action="cancel-sale"]', async function (e) {
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { await cancelSale(parseInt(id, 10)); }
+    });
+
+  }
+
   // --- Referencias a elementos del DOM del Reporte de Ventas ---
   const generateReportBtn = document.getElementById("generate-report-btn");
   const exportCsvBtn = document.getElementById("export-csv-btn");
@@ -21,7 +133,7 @@ document.addEventListener("DOMContentLoaded", function () {
   let currentCashCutDate = ""; // CAMBIADO: Una sola fecha para el corte
   let currentInitialCash = 0;
 
-   // 1. Se añade una variable para guardar la impresora, igual que en pos.js
+  // 1. Se añade una variable para guardar la impresora, igual que en pos.js
   let configuredPrinter = null;
 
   async function fetchPrinterConfig() {
@@ -413,7 +525,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (result.success) {
         showToast(result.message, "success");
         // Re-fetch the sales report to update the table
-        fetchSalesReport();
+        if (typeof ventasDataTable !== 'undefined' && ventasDataTable) { ventasDataTable.ajax.reload(null, false); }
       } else {
         showToast(result.message, "error");
       }
@@ -433,7 +545,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const result = await response.json();
 
       if (result.success) {
-        const defaultPrinter = "POS-58"; // Reemplaza con el nombre de tu impresora térmica
+        const defaultPrinter = configuredPrinter; // Reemplaza con el nombre de tu impresora térmica
         printTicket(defaultPrinter, result.data);
       } else {
         showToast(result.message, "error");
@@ -443,6 +555,168 @@ document.addEventListener("DOMContentLoaded", function () {
       showToast("Error al obtener los detalles del ticket para imprimir.", "error");
     }
   }
+
+  function escapeHtml(str = "") {
+    return String(str)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function formatCurrencyMXN(value) {
+    return "$" + parseFloat(value || 0).toLocaleString("es-MX", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  /** Genera HTML para un ticket de 58mm */
+  function buildTicketHtml(ticketData) {
+    const venta = ticketData.venta || {};
+    const items = ticketData.items || [];
+
+    const itemsRows = items.map(it => {
+      const totalLinea = formatCurrencyMXN(it.subtotal);
+      // columnas: Cant | Descripción | Total
+      return `
+      <tr>
+        <td class="qty">${escapeHtml(String(it.cantidad))}</td>
+        <td class="desc">${escapeHtml(it.producto_nombre || "")}${it.sku ? `<div class="sku">SKU: ${escapeHtml(it.sku)}</div>` : ""}</td>
+        <td class="monto">${totalLinea}</td>
+      </tr>
+    `;
+    }).join("");
+
+    const html = `
+    <div class="ticket">
+      <h1>${escapeHtml(venta.sucursal_nombre || "")}</h1>
+      <div class="sub">
+        ${escapeHtml(venta.sucursal_direccion || "")}<br>
+        Tel: ${escapeHtml(venta.sucursal_telefono || "")}
+      </div>
+
+      <hr>
+
+      <div class="row"><span>Ticket:</span><span>#${String(venta.id || 0).padStart(6, "0")}</span></div>
+      <div class="row"><span>Fecha:</span><span>${new Date(venta.fecha).toLocaleString("es-MX")}</span></div>
+      <div class="row"><span>Cliente:</span><span>${escapeHtml(venta.cliente || "")}</span></div>
+      <div class="row"><span>Vendedor:</span><span>${escapeHtml(venta.vendedor || "")}</span></div>
+
+      <hr>
+
+      <table class="items">
+        <thead>
+          <tr><th class="qty">Cant</th><th class="desc">Descripción</th><th class="monto">Total</th></tr>
+        </thead>
+        <tbody>
+          ${itemsRows || `<tr><td colspan="3" class="center">Sin artículos</td></tr>`}
+        </tbody>
+      </table>
+
+      <hr>
+
+      <div class="row total">
+        <span>TOTAL</span>
+        <span>${formatCurrencyMXN(venta.total)}</span>
+      </div>
+
+      <p class="center gracias">¡Gracias por su compra!</p>
+    </div>
+  `;
+
+    return html;
+  }
+
+  /** Abre ventana, inyecta HTML (58mm) y lanza window.print() */
+  function openPrintDialogWithTicket(html, ventaId) {
+    const w = window.open("", "PRINT", "width=420,height=640"); // ventana compacta
+    if (!w) {
+      showToast("Popup bloqueado. Permite ventanas emergentes para imprimir.", "error");
+      return;
+    }
+
+    w.document.write(`
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Ticket #${String(ventaId).padStart(6, "0")}</title>
+      <style>
+        @page { size: 58mm auto; margin: 0; }
+        @media print {
+          html, body { margin: 0; padding: 0; }
+        }
+        html, body { background: #fff; }
+        .ticket {
+          width: 58mm;
+          box-sizing: border-box;
+          padding: 4mm 3mm;
+          font-family: Tahoma, Arial, Helvetica, sans-serif; /* << cambio clave */
+          font-size: 12px;
+          color: #000;                /* negro puro */
+          font-weight: 600;           /* base más gruesa */
+          text-rendering: optimizeLegibility;
+        }
+        h1 {  margin: 0 0 2px 0;
+              font-family: "Arial Black", Tahoma, Arial, Helvetica, sans-serif;
+              font-size: 15px;
+              font-weight: 900;
+              text-align: center;
+              letter-spacing: .2px;
+              text-transform: uppercase;
+              text-shadow: 0 0 .3px #000, 0 0 .3px #000;
+              -webkit-text-stroke: .15px #000; 
+            }
+        .sub { text-align: center; margin-bottom: 6px; }
+        .row { display: flex; justify-content: space-between; gap: 8px; }
+        .total { font-weight: 700; font-size: 13px; }
+        hr { border: 0; border-top: 1px dashed #000; margin: 6px 0; }
+        .center { text-align: center; }
+        .gracias { margin-top: 8px; }
+        table.items { width: 100%; border-collapse: collapse; }
+        table.items th { text-align: left; font-weight: 700; border-bottom: 1px solid #000; padding-bottom: 2px; }
+        table.items td { vertical-align: top; }
+        .qty { width: 10mm; white-space: nowrap; }
+        .desc { width: auto; padding: 0 4px; }
+        .desc .sku { font-size: 11px; margin-top: 2px; opacity: .8; }
+        .monto { text-align: right; white-space: nowrap; width: 18mm; }
+      </style>
+    </head>
+    <body>
+      ${html}
+      <script>
+        // Lanzar impresión al cargar el contenido
+        window.onload = function () {
+          try { window.focus(); window.print(); } catch(e) {}
+        };
+      </script>
+    </body>
+    </html>
+  `);
+
+    w.document.close();
+  }
+
+  async function handlePrintTicketViaDialog(saleId) {
+    try {
+      const resp = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
+      const result = await resp.json();
+
+      if (!result.success) {
+        showToast(result.message || "No se pudo obtener el ticket.", "error");
+        return;
+      }
+
+      const html = buildTicketHtml(result.data);
+      openPrintDialogWithTicket(html, saleId);
+    } catch (err) {
+      console.error("Error en impresión (Windows):", err);
+      showToast("Error al preparar el ticket para impresión.", "error");
+    }
+  }
+
 
   /**
    * Opens a new window to display the PDF version of the sale.
@@ -491,6 +765,9 @@ document.addEventListener("DOMContentLoaded", function () {
         statusClass = 'text-green-400 font-semibold';
         actionButtonsHtml = `
           <div class="flex items-center space-x-2">
+            <button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-lg text-xs print-ticket-win-btn" data-id="${sale.id}" title="Imprimir (Windows)">
+                <i class="fas fa-print"></i>
+            </button>
             <button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-lg text-xs print-ticket-btn" data-id="${sale.id}" title="Imprimir Ticket">
                 <i class="fas fa-receipt"></i>
             </button>
@@ -570,6 +847,15 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
     });
+    document.querySelectorAll('.print-ticket-win-btn').forEach(button => {
+      button.addEventListener('click', async (event) => {
+        const targetButton = event.target.closest('.print-ticket-win-btn');
+        if (!targetButton) return;
+        const saleId = parseInt(targetButton.dataset.id, 10);
+        await handlePrintTicketViaDialog(saleId);
+      });
+    });
+
   }
 
 
@@ -1048,9 +1334,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   // --- Asignación de Eventos ---
   generateReportBtn.addEventListener("click", fetchSalesReport);
-  exportCsvBtn.addEventListener("click", exportToCsv);
+  // exportCsvBtn disabled: using DataTables Buttons
+  // exportCsvBtn.addEventListener("click", exportToCsv);
   generateCashCutBtn.addEventListener("click", fetchCashCut);
- printCashCutBtn.addEventListener("click", printCashCutReport);
+  printCashCutBtn.addEventListener("click", printCashCutReport);
 
   if (userFilterSelect) { // Si el filtro existe, recargamos el corte al cambiarlo
     userFilterSelect.addEventListener('change', fetchCashCut);
@@ -1072,8 +1359,9 @@ document.addEventListener("DOMContentLoaded", function () {
   endDateInput.value = todayFormatted;
   cashCutDateInput.value = todayFormatted; // CAMBIADO: Un solo input de fecha
 
-  fetchSalesReport();
+  if (typeof ventasDataTable !== 'undefined' && ventasDataTable) { ventasDataTable.ajax.reload(null, false); }
   fetchCashCut(); // Llama a fetchCashCut para cargar la caja inicial al inicio
   loadUsersForFilter();
   fetchPrinterConfig();
+  initSalesDataTable();
 });

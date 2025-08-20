@@ -54,6 +54,10 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             /* Un poco más de énfasis */
         }
     </style>
+    <!-- DataTables + Buttons -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.1/css/buttons.dataTables.min.css">
+
 </head>
 
 <body class="bg-[#0f172a] text-gray-300">
@@ -79,7 +83,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             <div class="bg-[#1e293b] p-6 rounded-lg mb-8">
                 <h2 class="text-xl font-semibold text-white mb-4">Reporte de Ventas</h2>
                 <!-- Filtros -->
-                <div class="flex flex-wrap items-end gap-4 mb-6">
+                <div class="flex flex-wrap items-end gap-4 mb-6" style="display: none !important;">
                     <div>
                         <label for="start-date" class="block text-sm font-medium text-gray-300 mb-1">Fecha de
                             Inicio</label>
@@ -101,9 +105,9 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                 </div>
 
                 <!-- Tabla de Reporte -->
-                <!-- Contenedor para el scroll vertical -->
-                <div class="table-scroll-container">
-                    <table class="min-w-full">
+
+                <div class="bg-[#1e293b] rounded-lg shadow overflow-auto mb-8 p-4">
+                    <table id="tablaVentas" class="min-w-full">
                         <thead class="bg-gray-800 text-xs text-gray-400 uppercase sticky top-0">
                             <tr>
                                 <th class="py-3 px-6 text-left">Fecha</th>
@@ -115,11 +119,11 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                                 <th class="py-3 px-6 text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="report-table-body" class="divide-y divide-gray-700">
-                            <tr>
-                                <td colspan="7" class="text-center py-10 text-gray-500">Seleccione un rango de fechas y
-                                    genere un reporte.</td>
-                            </tr>
+                        <tbody id="report-table-body" class="divide-y divide-gray-700 text-xs">
+                            <!--   <tr>
+                            <td colspan="7" class="text-center py-10 text-gray-500">Seleccione un rango de fechas y
+                                genere un reporte.</td>
+                        </tr> -->
                             <!-- Ejemplo de fila con Ticket ID de color. En tu JS, cuando generes las filas,
                                  asegúrate de añadir la clase 'ticket-id-cell' a la celda del Ticket ID. -->
                             <!-- <tr>
@@ -138,6 +142,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                         </tbody>
                     </table>
                 </div>
+
             </div>
 
             <!-- Sección de Corte de Caja -->
@@ -183,33 +188,42 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         </main>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
+
     <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2/qz-tray.min.js"></script>
     <script src="js/qz-tray-handler.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.4.1/js/buttons.print.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <script src="js/rutas.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/confirm.js"></script>
     <script src="js/reportes.js"></script>
-     <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const mobileMenuButton = document.getElementById('mobile-menu-button');
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebar-overlay');
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
 
-      if (mobileMenuButton && sidebar && overlay) {
-        mobileMenuButton.addEventListener('click', (e) => {
-          e.stopPropagation();
-          sidebar.classList.remove('-translate-x-full');
-          overlay.classList.remove('hidden');
-        });
+            if (mobileMenuButton && sidebar && overlay) {
+                mobileMenuButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    sidebar.classList.remove('-translate-x-full');
+                    overlay.classList.remove('hidden');
+                });
 
-        overlay.addEventListener('click', () => {
-          sidebar.classList.add('-translate-x-full');
-          overlay.classList.add('hidden');
+                overlay.addEventListener('click', () => {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                });
+            }
         });
-      }
-    });
-  </script>
+    </script>
 </body>
 
 </html>

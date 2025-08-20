@@ -41,7 +41,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
         table.dataTable thead th {
             border-bottom: 2px solid #ffffffff !important;
-            background-color:#0f172a;
+            background-color: #0f172a;
         }
 
         table.dataTable.no-footer {
@@ -484,7 +484,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <script src="js/confirm.js"></script>
     <script src="js/inventario.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const mobileMenuButton = document.getElementById('mobile-menu-button');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');

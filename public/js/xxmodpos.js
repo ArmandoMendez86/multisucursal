@@ -144,36 +144,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
-
-  // --- Búsqueda en backend ---
-  let searchAbortController = null;
-  let searchTimer = null;
-  const SEARCH_LIMIT = 50;
-
-  async function searchProductsBackend(query) {
-    if (searchAbortController) {
-      try { searchAbortController.abort(); } catch (_) { }
-    }
-    searchAbortController = new AbortController();
-    const signal = searchAbortController.signal;
-    try {
-      const url = `${BASE_URL}/searchProducts?q=${encodeURIComponent(query)}&limit=${SEARCH_LIMIT}`;
-      const resp = await fetch(url, { signal });
-      const result = await resp.json();
-      if (result.success) {
-        // Reemplaza el conjunto visible con los resultados
-        allProducts = result.data; // mantenemos compat con render/addProductToCart
-        renderProducts(allProducts);
-      } else {
-        productListContainer.innerHTML = `<p class="text-gray-500">Sin resultados.</p>`;
-      }
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        console.error('Error buscando productos en backend', e);
-        productListContainer.innerHTML = `<p class="text-red-500">Error al buscar.</p>`;
-      }
-    }
-  }
   let cart = [];
   let selectedClient = {
     id: 1,
@@ -190,7 +160,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function fetchProducts() {
     try {
-      const response = await fetch(`${BASE_URL}/getProducts?limit=20`);
+      const response = await fetch(`${BASE_URL}/getProducts`);
       const result = await response.json();
       if (result.success) {
         allProducts = result.data;
@@ -234,8 +204,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
       productCard.className = `product-card ${isOutOfStock ? 'out-of-stock' : ''}`;
       productCard.dataset.productId = product.id;
-      productCard.title = String(product.nombre || '');
-      productCard.setAttribute('aria-label', productCard.title);
 
       const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(
         product.nombre.substring(0, 8)
@@ -310,10 +278,10 @@ document.addEventListener("DOMContentLoaded", function () {
             <div class="flex items-center ml-2">
                 <div class="quantity-controls">
                     <button data-id="${item.id}" class="quantity-change" data-action="decrease">-</button>
-                    <input type="number" min="1" class="quantity-input w-16 bg-gray-600 text-white rounded text-center text-sm px-1 mx-1 focus:outline-none focus:ring-1 focus:ring-blue-400" data-id="${item.id}" value="${item.quantity}" />
+                    <span>${item.quantity}</span>
                     <button data-id="${item.id}" class="quantity-change" data-action="increase">+</button>
                 </div>
-                <div class="text-right font-mono text-base ml-2 line-total" data-id="${item.id}">$${(item.quantity * item.precio_final).toFixed(2)}</div>
+                <div class="text-right font-mono text-base ml-2">$${(item.quantity * item.precio_final).toFixed(2)}</div>
                 <button data-id="${item.id}" class="remove-item-btn text-red-400 hover:text-red-300 p-1 ml-1 rounded-full">
                     <i class="fas fa-trash-alt"></i>
                 </button>
@@ -359,9 +327,9 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         if (product.tipo_precio_aplicado !== "Especial") {
-          product.precio_final = getPriceForProduct(product, currentPriceLevel);
-          product.tipo_precio_aplicado = `P${currentPriceLevel}`;
-        }
+        product.precio_final = getPriceForProduct(product, currentPriceLevel);
+        product.tipo_precio_aplicado = `P${currentPriceLevel}`;
+      }
 
         cart.push({ ...product, quantity: 1, id: product.id });
         renderCart();
@@ -374,17 +342,21 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function filterProducts() {
-    const query = searchProductInput.value.trim();
+    const query = searchProductInput.value.toLowerCase();
+    // If there is no search term, only display the first PRODUCTS_TO_SHOW items.
     if (!query) {
-      // Sin búsqueda: solo mostrar primeros N ya cargados
       renderProducts(allProducts.slice(0, PRODUCTS_TO_SHOW));
       return;
     }
-    // Debounce 250ms y buscar en backend
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      searchProductsBackend(query);
-    }, 250);
+    const filtered = allProducts.filter((p) => {
+      const barcodes = (p.codigos_barras || '').toLowerCase();
+      return (
+        p.nombre.toLowerCase().includes(query) ||
+        (p.sku && String(p.sku).toLowerCase().includes(query)) ||
+        barcodes.includes(query)
+      );
+    });
+    renderProducts(filtered);
   }
 
   async function handleBarcodeScan(event) {
@@ -392,29 +364,23 @@ document.addEventListener("DOMContentLoaded", function () {
     event.preventDefault();
     const code = searchProductInput.value.trim();
     if (code === "") return;
-
-    // 1) Intento rápido en memoria (si casualmente está en el subset cargado)
-    let product = skuBarcodeMap[code] || null;
+    // Utiliza la tabla de búsqueda construida para encontrar el producto por
+    // SKU o código de barras de forma instantánea.  Si no existe en el
+    // mapa, se muestra un mensaje de error.
+    const product = skuBarcodeMap[code] || null;
     if (product) {
       addProductToCart(product.id);
       searchProductInput.value = "";
+      // Cuando se agrega un producto por escaneo de código de barras,
+      // restablece la lista visual.  Si la entrada está vacía se
+      // mostrarán nuevamente los primeros productos, de lo contrario la
+      // búsqueda se filtrará correctamente.
       filterProducts();
-      return;
-    }
-
-    // 2) Fallback: consulta al backend por SKU o código de barras
-    try {
-      const resp = await fetch(`${BASE_URL}/getProductByBarcode?code=${encodeURIComponent(code)}`);
-      const json = await resp.json();
-      if (json.success && json.data && json.data.id) {
-        addProductToCart(json.data.id);
-        searchProductInput.value = "";
-        filterProducts();
-      } else {
-        showToast("Producto no encontrado por SKU o código de barras.", "error");
-      }
-    } catch (e) {
-      showToast("Error al buscar el producto por código.", "error");
+    } else {
+      showToast(
+        "Producto no encontrado por SKU o código de barras.",
+        "error"
+      );
     }
   }
 
@@ -623,50 +589,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  
-  // Permitir editar cantidad directamente en el input
-  function handleQuantityInput(event) {
-    const input = event.target.closest(".quantity-input");
-    if (!input) return;
-    const id = input.dataset.id;
-    let val = parseInt(input.value, 10);
-    if (isNaN(val)) return; // permitir escribir
-    if (val < 1) val = 1;
-    const item = cart.find((i) => i.id == id);
-    if (!item) return;
-    const product = allProducts.find((p) => p.id == id);
-    if (product && typeof product.stock === "number") {
-      if (val > product.stock) val = product.stock;
-    }
-    item.quantity = val;
-    // Actualiza total por línea sin re-render completo
-    const line = cartItemsContainer.querySelector(`.line-total[data-id="${id}"]`);
-    if (line) line.textContent = `$${(item.quantity * item.precio_final).toFixed(2)}`;
-    updateTotals();
-  }
-
-  function handleQuantityCommit(event) {
-    const input = event.target.closest(".quantity-input");
-    if (!input) return;
-    const id = input.dataset.id;
-    let val = parseInt(input.value, 10);
-    if (isNaN(val) || val < 1) val = 1;
-    const item = cart.find((i) => i.id == id);
-    if (!item) return;
-    const product = allProducts.find((p) => p.id == id);
-    if (product && typeof product.stock === "number" && val > product.stock) {
-      val = product.stock;
-      showToast("Stock máximo alcanzado en el carrito.", "error");
-    }
-    if (val === 0) {
-      cart = cart.filter((it) => it.id != id);
-      renderCart();
-      return;
-    }
-    item.quantity = val;
-    renderCart(); // re-render para mantener select de precio y botones en sync
-  }
-function handleQuantityChange(event) {
+  function handleQuantityChange(event) {
     const button = event.target.closest(".quantity-change");
     if (!button) return;
     const productId = button.dataset.id;
@@ -1186,33 +1109,33 @@ function handleQuantityChange(event) {
    * @param {object} result El objeto que contiene los datos del ticket en result.data.
    */
   async function imprimirTicketDespuesDeGuardar(result) {
-    const ticketData = result.data;
+  const ticketData = result.data;
 
-    // opcional: forzar impresora desde la UI/config
-    if (configuredPrinter) {
-      ticketData.printerName = configuredPrinter;
-    }
+  // opcional: forzar impresora desde la UI/config
+  if (configuredPrinter) {
+    ticketData.printerName = configuredPrinter; 
+  }
 
-    try {
-      const response = await fetch('http://127.0.0.1:9898/imprimir', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ticketData)
-      });
+  try {
+    const response = await fetch('http://127.0.0.1:9898/imprimir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ticketData)
+    });
 
-      if (response.ok) {
-        showToast("Ticket enviado a la impresora local.", "success");
-      } else {
-        const errorText = await response.text();
-        showToast(`Error del servicio local: ${errorText}`, "error");
-        await fallbackToQzTray(ticketData);
-      }
-    } catch (err) {
-      console.warn("Servicio local no disponible:", err);
-      showToast("Servicio local no encontrado. Usando QZ Tray.", "warning");
+    if (response.ok) {
+      showToast("Ticket enviado a la impresora local.", "success");
+    } else {
+      const errorText = await response.text();
+      showToast(`Error del servicio local: ${errorText}`, "error");
       await fallbackToQzTray(ticketData);
     }
+  } catch (err) {
+    console.warn("Servicio local no disponible:", err);
+    showToast("Servicio local no encontrado. Usando QZ Tray.", "warning");
+    await fallbackToQzTray(ticketData);
   }
+}
 
 
   /**
@@ -1542,12 +1465,7 @@ function handleQuantityChange(event) {
     } else if (removeButton) {
       removeProductFromCart(removeButton.dataset.id);
     }
-  
-  // Listeners para edición directa de cantidad
-  cartItemsContainer.addEventListener("input", handleQuantityInput);
-  cartItemsContainer.addEventListener("change", handleQuantityCommit);
-  cartItemsContainer.addEventListener("blur", handleQuantityCommit, true);
-});
+  });
 
   cancelSaleBtn.addEventListener("click", cancelSale);
   chargeBtn.addEventListener("click", showChargeModal);
@@ -1556,8 +1474,8 @@ function handleQuantityChange(event) {
   modalConfirmBtn.addEventListener("click", processSale);
 
   if (priceTypeSelector) {
-
-    priceTypeSelector.addEventListener("click", (e) => {
+    
+priceTypeSelector.addEventListener("click", (e) => {
       const targetButton = e.target.closest(".price-type-btn");
       if (!targetButton || targetButton.classList.contains("active-price-type")) return;
 
@@ -1586,7 +1504,7 @@ function handleQuantityChange(event) {
 
   addPaymentMethodBtn.addEventListener("click", () => addPaymentMethodInput());
 
-
+  
   // Cambio de nivel de precio por item
   cartItemsContainer.addEventListener("change", (e) => {
     const sel = e.target.closest(".price-level-select");
@@ -1605,7 +1523,7 @@ function handleQuantityChange(event) {
     }
     renderCart();
   });
-  toggleIvaCheckbox.addEventListener("change", () => {
+toggleIvaCheckbox.addEventListener("change", () => {
     applyIVA = toggleIvaCheckbox.checked;
     updateTotals();
   });

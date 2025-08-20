@@ -26,11 +26,11 @@ class Producto
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getAll($id_sucursal, $limit = null, $offset = null)
+    public function getAll($id_sucursal)
     {
         // Se elimina p.codigo_barras y se agrega el GROUP_CONCAT para los nuevos códigos
         $query = "SELECT 
-                    p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, p.costo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, p.activo,
+                    p.id, p.sku, p.nombre, p.precio_menudeo, p.activo,
                     c.nombre as categoria_nombre,
                     m.nombre as marca_nombre,
                     inv.stock, inv.stock_minimo,
@@ -261,7 +261,7 @@ class Producto
     public function getForPOS($id_producto, $id_sucursal, $id_cliente)
     {
         $query = "SELECT 
-                    p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5,
+                    p.id, p.sku, p.nombre, p.precio_menudeo, p.precio_mayoreo,
                     inv.stock
                   FROM 
                     " . $this->table_name . " p
@@ -298,8 +298,8 @@ class Producto
             $producto['precio_final'] = $precio_especial;
             $producto['tipo_precio_aplicado'] = 'Especial';
         } else {
-            $producto['precio_final'] = $producto['precio_1'] ?? $producto['precio_menudeo'];
-            $producto['tipo_precio_aplicado'] = 'P1';
+            $producto['precio_final'] = $producto['precio_menudeo'];
+            $producto['tipo_precio_aplicado'] = 'Menudeo';
         }
 
         return $producto;
@@ -357,7 +357,7 @@ class Producto
             throw $e;
         }
     }
-
+    
     public function getInventoryMovements($id_sucursal)
     {
         $query = "SELECT 
@@ -381,7 +381,7 @@ class Producto
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
-
+    
     public function findStockInAllBranches($searchTerm)
     {
         // Se añade la búsqueda por la nueva tabla de códigos
@@ -411,35 +411,6 @@ class Producto
         $stmt->bindParam(':searchTerm', $likeTerm);
         $stmt->execute();
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
-    }
-    public function search($id_sucursal, $q, $limit = 50, $offset = 0)
-    {
-        $like = '%' . $q . '%';
-        $query = "SELECT 
-                    p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo,
-                    p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, p.activo,
-                    c.nombre as categoria_nombre,
-                    m.nombre as marca_nombre,
-                    inv.stock, inv.stock_minimo,
-                    GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') as codigos_barras
-                  FROM productos p
-                  LEFT JOIN categorias c ON p.id_categoria = c.id
-                  LEFT JOIN marcas m ON p.id_marca = m.id
-                  LEFT JOIN " . $this->inventory_table . " inv
-                         ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal
-                  LEFT JOIN " . $this->codes_table . " pc
-                         ON p.id = pc.id_producto
-                  WHERE (p.nombre LIKE :like OR p.sku LIKE :like OR pc.codigo_barras LIKE :like)
-                  GROUP BY p.id
-                  ORDER BY p.nombre ASC
-                  LIMIT :offset, :limit";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
-        $stmt->bindParam(':like', $like);
-        $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
-        $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
-        $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 }

@@ -5,13 +5,18 @@ class Database
 {
 
     //Localhost
-     private $host = 'localhost';
-     private $db_name = 'megaparty';
+    private $host = 'localhost';
+    /*   private $db_name = 'update_mega';
      private $username = 'root';
      private $password = 'Linux861215';
-     private $conn;
+     private $conn; */
 
-  
+    private $db_name = 'megapart_update';
+    private $username = 'megapart_update';
+    private $password = 'Update861215#-';
+    private $conn;
+
+
 
     private static $instance = null;
 
@@ -24,16 +29,13 @@ class Database
             $this->conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $this->conn->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             $this->conn->exec("SET time_zone = '-06:00'");
-
         } catch (PDOException $e) {
             echo 'Error de Conexión: ' . $e->getMessage();
             exit;
         }
     }
 
-    private function __clone()
-    {
-    }
+    private function __clone() {}
 
     public static function getInstance()
     {
