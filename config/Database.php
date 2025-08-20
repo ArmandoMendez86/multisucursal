@@ -5,12 +5,15 @@ class Database
 {
 
     //Localhost
-    private $host = 'localhost';
-    /*   private $db_name = 'update_mega';
+
+    /*  
+     private $host = 'localhost';
+    private $db_name = 'update_mega';
      private $username = 'root';
      private $password = 'Linux861215';
-     private $conn; */
-
+     private $conn; 
+     */
+    private $host = 'localhost';
     private $db_name = 'megapart_update';
     private $username = 'megapart_update';
     private $password = 'Update861215#-';
