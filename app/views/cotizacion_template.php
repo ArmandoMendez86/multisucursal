@@ -6,6 +6,7 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,22 +15,30 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
         body {
             font-family: 'Inter', sans-serif;
-            -webkit-print-color-adjust: exact; /* Asegura que los colores se impriman en Chrome/Safari */
+            -webkit-print-color-adjust: exact;
+            /* Asegura que los colores se impriman en Chrome/Safari */
             print-color-adjust: exact;
         }
+
         /* Define un tamaño de texto extra pequeño */
         .text-xxs {
-            font-size: 0.65rem; /* Aproximadamente 10.4px */
+            font-size: 0.65rem;
+            /* Aproximadamente 10.4px */
             line-height: 0.8rem;
         }
+
         /* Oculta el botón de imprimir en el PDF final */
         @media print {
-            .no-print { display: none; }
+            .no-print {
+                display: none;
+            }
         }
     </style>
 </head>
+
 <body class="bg-gray-100">
 
     <div class="no-print fixed bottom-5 right-5">
@@ -113,7 +122,7 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
                 </thead>
                 <tbody>
                     <?php foreach ($items as $item): ?>
-                        <?php $subtotal += $item['subtotal']; ?>
+
                         <tr class="border-b border-gray-100">
                             <td class="py-2 px-3 align-top text-sm"><?php echo htmlspecialchars($item['cantidad']); ?></td>
                             <td class="py-2 px-3">
@@ -127,24 +136,37 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
                 </tbody>
             </table>
         </section>
-
         <section class="mt-8 flex justify-end">
             <div class="w-full max-w-sm space-y-2">
+                <?php
+                // --- INICIO DE LA LÓGICA CORREGIDA ---
+                $total_final = $venta['total'];
+                $subtotal_display = $total_final;
+                $iva_display = 0;
+
+                if ($venta['iva_aplicado'] == 1) {
+                    // Si se aplicó IVA, calculamos el subtotal y el IVA "hacia atrás" desde el total
+                    $subtotal_display = $total_final / 1.16;
+                    $iva_display = $total_final - $subtotal_display;
+                }
+                // --- FIN DE LA LÓGICA CORREGIDA ---
+                ?>
+
                 <div class="flex justify-between text-gray-700 items-center">
                     <span class="flex items-center"><i class="fas fa-money-bill-alt mr-2"></i> Subtotal:</span>
-                    <span>$<?php echo number_format($subtotal, 2); ?></span>
+                    <span>$<?php echo number_format($subtotal_display, 2); ?></span>
                 </div>
-                
+
                 <?php if ($venta['iva_aplicado'] == 1): ?>
                     <div class="flex justify-between text-gray-700 items-center">
                         <span class="flex items-center"><i class="fas fa-percent mr-2"></i> IVA (16%):</span>
-                        <span>$<?php echo number_format($subtotal * 0.16, 2); ?></span>
+                        <span>$<?php echo number_format($iva_display, 2); ?></span>
                     </div>
                 <?php endif; ?>
 
                 <div class="flex justify-between text-gray-900 font-bold text-xl pt-2 border-t border-gray-200 items-center">
                     <span class="flex items-center"><i class="fas fa-calculator mr-2"></i> Total:</span>
-                    <span>$<?php echo number_format($venta['total'], 2); ?></span>
+                    <span>$<?php echo number_format($total_final, 2); ?></span>
                 </div>
             </div>
         </section>
@@ -165,4 +187,5 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
         </footer>
     </div>
 </body>
+
 </html>

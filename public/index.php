@@ -57,8 +57,14 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 } elseif (in_array($action, ['getExpenses', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) {
     require_once __DIR__ . '/../app/controllers/GastoController.php';
     $controller = new GastoController();
-} elseif (in_array($action, ['getSalesReport',
-        'getSalesReportPaginated', 'getCashCut', 'getDetailedExpenses', 'getDetailedClientPayments', 'getGlobalSalesReport'])) {
+} elseif (in_array($action, [
+    'getSalesReport',
+    'getSalesReportPaginated',
+    'getCashCut',
+    'getDetailedExpenses',
+    'getDetailedClientPayments',
+    'getGlobalSalesReport'
+])) {
     require_once __DIR__ . '/../app/controllers/ReporteController.php';
     $controller = new ReporteController();
 } elseif (in_array($action, ['checkApertura', 'registrarApertura', 'getMontoApertura'])) {
@@ -83,6 +89,9 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 } elseif (in_array($action, ['getPrinterConfig', 'updatePrinterConfig', 'getBranchConfig', 'updateBranchConfig'])) {
     require_once __DIR__ . '/../app/controllers/ConfiguracionController.php';
     $controller = new ConfiguracionController();
+} elseif (in_array($action, ['getPrintPrefs', 'updatePrintPrefs'])) {
+    require_once __DIR__ . '/../app/controllers/ImpresionController.php';
+    $controller = new ImpresionController();
 } elseif (in_array($action, ['getDashboardData'])) {
     require_once __DIR__ . '/../app/controllers/DashboardController.php';
     $controller = new DashboardController();
@@ -326,6 +335,16 @@ switch ($action) {
     case 'getBranchUsers':
         $controller->getUsersByCurrentBranch();
         break;
+
+    case 'getPrintPrefs':
+        $controller->getPrintPrefs();
+        break;
+
+    case 'updatePrintPrefs':
+        $controller->updatePrintPrefs();
+        break;
+
+
 
     default:
         if (isset($controller)) {

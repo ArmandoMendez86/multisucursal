@@ -73,17 +73,24 @@ class VentaController
         }
 
         try {
-            $this->conn->beginTransaction(); // Start transaction for sale and inventory movements
+            $this->conn->beginTransaction(); // Start transaction
 
-            // First, check stock for all items before processing anything
-            foreach ($data['cart'] as $item) {
-                $product = $this->productoModel->getById($item['id'], $data['id_sucursal']);
-                $current_stock = $product['stock'] ?? 0;
-                if ($item['quantity'] > $current_stock) {
-                    throw new Exception("Stock insuficiente para el producto: " . $product['nombre'] . ". Solicitado: " . $item['quantity'] . ", Disponible: " . $current_stock);
+            // ✅ 1. Leemos el permiso enviado desde el frontend.
+            $allowNegativeStock = !empty($data['allow_negative_stock']);
+
+            // 2. Verificamos el stock SÓLO SI NO está permitida la venta negativa.
+            if (!$allowNegativeStock) {
+                foreach ($data['cart'] as $item) {
+                    $product = $this->productoModel->getById($item['id'], $data['id_sucursal']);
+                    $current_stock = $product['stock'] ?? 0;
+
+                    if ($item['quantity'] > $current_stock) {
+                        throw new Exception("Stock insuficiente para: " . $product['nombre'] . ". Solicitado: " . $item['quantity'] . ", Disponible: " . $current_stock);
+                    }
                 }
             }
 
+            // 3. El resto del proceso de guardado y actualización de stock continúa sin cambios.
             if (isset($data['id_venta']) && !empty($data['id_venta'])) {
                 $this->ventaModel->update($data);
                 $saleId = $data['id_venta'];
@@ -93,19 +100,15 @@ class VentaController
                 $message = 'Venta registrada exitosamente.';
             }
 
-            // Update client's credit if 'Crédito' was used
             if ($creditPaymentAmount > 0) {
                 $this->clienteModel->updateClientCredit($data['id_cliente'], $creditPaymentAmount);
             }
 
-            // Record inventory movements and UPDATE STOCK for each item in the cart
             foreach ($data['cart'] as $item) {
                 $product = $this->productoModel->getById($item['id'], $data['id_sucursal']);
                 $old_stock = $product['stock'] ?? 0;
                 $new_stock = $old_stock - $item['quantity'];
 
-                // *** INICIO DE LA CORRECCIÓN ***
-                // Step 1: Actually UPDATE the stock in the inventory table
                 $stmt_update_stock = $this->conn->prepare(
                     "UPDATE inventario_sucursal SET stock = :new_stock WHERE id_producto = :id_producto AND id_sucursal = :id_sucursal"
                 );
@@ -113,9 +116,7 @@ class VentaController
                 $stmt_update_stock->bindParam(':id_producto', $item['id'], PDO::PARAM_INT);
                 $stmt_update_stock->bindParam(':id_sucursal', $data['id_sucursal'], PDO::PARAM_INT);
                 $stmt_update_stock->execute();
-                // *** FIN DE LA CORRECCIÓN ***
 
-                // Step 2: Log the movement (this part was already correct)
                 $this->productoModel->addInventoryMovement(
                     $item['id'],
                     $data['id_sucursal'],
@@ -125,7 +126,7 @@ class VentaController
                     $old_stock,
                     $new_stock,
                     'Venta # ' . $saleId,
-                    $saleId // Reference to sale ID
+                    $saleId
                 );
             }
 

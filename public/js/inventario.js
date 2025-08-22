@@ -104,10 +104,11 @@ document.addEventListener('DOMContentLoaded', function () {
             paging: true,
             searching: true,
             info: true,
-            lengthChange: false,
-            pageLength: 5,
+            lengthChange: true, // 1. Activa el selector
+            pageLength: 10,     // Opcional: define la cantidad de filas por defecto
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
             language: { search: "Buscar:", searchPlaceholder: "Buscar producto...", zeroRecords: "No se encontraron productos", emptyTable: "No hay productos", info: "Mostrando _START_ a _END_ de _TOTAL_ productos", infoEmpty: "Mostrando 0 a 0 de 0 productos", paginate: { first: "Primero", last: "Último", next: "Siguiente", previous: "Anterior" } },
-            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 gap-4" <"ml-auto"f> > rt <"flex justify-between items-center mt-4"ip>'
+            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 gap-4" <"flex items-center" l> <"ml-auto" f> > rt <"flex justify-between items-center mt-4"ip>'
 
         });
     }
@@ -139,10 +140,11 @@ document.addEventListener('DOMContentLoaded', function () {
             responsive: true,
             searching: true,
             info: true,
-            lengthChange: false,
-            pageLength: 5,
+            lengthChange: true, // 1. Activa el selector
+            pageLength: 10,     // Opcional: define la cantidad de filas por defecto
+            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
             language: { search: "Buscar:", searchPlaceholder: "Buscar movimiento...", zeroRecords: "No se encontraron movimientos", emptyTable: "No hay movimientos", info: "Mostrando _START_ a _END_ de _TOTAL_ movimientos", infoEmpty: "Mostrando 0 a 0 de 0 movimientos", paginate: { first: "Primero", last: "Último", next: "Siguiente", previous: "Anterior" } },
-            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 gap-4" <"ml-auto"f> > rt <"flex justify-between items-center mt-4"ip>'
+            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 gap-4" <"flex items-center" l> <"ml-auto" f> > rt <"flex justify-between items-center mt-4"ip>'
 
         });
     }
@@ -309,6 +311,8 @@ document.addEventListener('DOMContentLoaded', function () {
         const formData = new FormData(productForm);
         const productData = Object.fromEntries(formData.entries());
         const productId = productData.id;
+        productData.stock = parseInt(productData.stock) || 0;
+        productData.stock_minimo = parseInt(productData.stock_minimo) || 0;
         const barcodeInputs = barcodesContainer.querySelectorAll('.barcode-input');
         productData.codigos_barras = Array.from(barcodeInputs).map(input => input.value.trim()).filter(Boolean);
         const url = productId ? `${BASE_URL}/updateProduct` : `${BASE_URL}/createProduct`;
@@ -344,7 +348,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 document.getElementById('sku').value = product.sku;
                 document.getElementById('id_categoria').value = product.id_categoria;
                 document.getElementById('id_marca').value = product.id_marca;
-                document.getElementById('stock').value = product.stock;
+
+                document.getElementById('stock').value = product.stock ?? 0;
+                document.getElementById('stock_minimo').value = product.stock_minimo ?? 0;
+                document.getElementById('precio_menudeo').value = product.precio_menudeo ?? 0;
+                document.getElementById('precio_mayoreo').value = product.precio_mayoreo ?? 0;
+                document.getElementById('descripcion').value = product.descripcion ?? '';
+
                 document.getElementById('stock_minimo').value = product.stock_minimo;
                 document.getElementById('precio_menudeo').value = product.precio_menudeo;
                 document.getElementById('precio_mayoreo').value = product.precio_mayoreo;

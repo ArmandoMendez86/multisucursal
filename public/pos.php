@@ -302,6 +302,22 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     .action-buttons-container .delete-sale-btn:hover {
       color: white;
     }
+
+    /* Estilos para que el interruptor (toggle switch) se active visualmente */
+    #toggle-negative-stock:checked~.dot {
+      transform: translateX(1rem);
+      /* Mueve el círculo a la derecha */
+    }
+
+    #toggle-negative-stock:checked~div>.dot {
+      transform: translateX(1rem);
+      /* Mueve el círculo a la derecha */
+    }
+
+    #toggle-negative-stock:checked~.block {
+      background-color: #22c55e;
+      /* Cambia el fondo a verde (Tailwind green-500) */
+    }
   </style>
 </head>
 
@@ -319,6 +335,38 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
       <div class="w-8"></div>
     </header>
+
+
+    <div class="flex justify-between">
+      <!-- Switch de impresión (visible arriba) -->
+      <div class="px-4 py-2 bg-[#0b1220] border-r border-slate-800">
+        <div class="flex items-center gap-3">
+          <label class="text-sm text-gray-300">Impresión</label>
+          <div class="flex items-center bg-[#0f172a] border border-slate-600 rounded-lg overflow-hidden">
+            <button id="pm-service" class="px-3 py-1 text-sm bg-slate-700">Servicio</button>
+            <button id="pm-qztray" class="px-3 py-1 text-sm">QZ Tray</button>
+          </div>
+          <button id="btn-qz-connect" class="hidden px-3 py-1 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded">
+            Conectar QZ
+          </button>
+          <span id="qz-status" class="text-xs text-gray-400">QZ: <span>Desconectado</span></span>
+        </div>
+      </div>
+
+      <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] === 'Super'): ?>
+        <div class="flex items-center space-x-2 border-l border-gray-600 pr-3 p-3">
+          <span class="text-sm font-medium text-yellow-400">Vender sin Stock</span>
+          <label for="toggle-negative-stock" class="flex items-center cursor-pointer">
+            <div class="relative">
+              <input type="checkbox" id="toggle-negative-stock" class="sr-only">
+              <div class="block bg-gray-600 w-10 h-6 rounded-full"></div>
+              <div class="dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition"></div>
+            </div>
+          </label>
+        </div>
+      <?php endif; ?>
+
+    </div>
 
     <!-- MODIFICADO: Contenedor de columnas ahora usa el breakpoint 'lg' -->
     <div class="flex-1 flex lg:flex-row flex-col overflow-y-auto">
@@ -610,12 +658,24 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     </div>
   </div>
 
+  <!-- Modal confirmación QZ -->
+  <div id="qz-confirm" class="hidden fixed inset-0 bg-black/50 items-center justify-center">
+    <div class="bg-white rounded p-4 w-80 text-slate-900">
+      <h3 class="font-semibold mb-2">Usar QZ Tray</h3>
+      <p class="text-sm mb-4">QZ solicitará permisos del sistema. ¿Deseas continuar?</p>
+      <div class="flex justify-end gap-2">
+        <button id="qz-cancel" class="px-3 py-1 border rounded">Cancelar</button>
+        <button id="qz-accept" class="px-3 py-1 bg-slate-800 text-white rounded">Conectar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js"></script>
+  <!--   <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qz-tray@2.2/qz-tray.min.js"></script>
-  <script src="js/qz-tray-handler.js"></script>
+  <script src="js/qz-tray-handler.js"></script> -->
   <script src="js/rutas.js"></script>
   <script src="js/toast.js"></script>
   <script src="js/confirm.js"></script>
@@ -640,7 +700,6 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       }
     });
   </script>
-
 </body>
 
 </html>

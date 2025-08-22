@@ -11,17 +11,102 @@ document.addEventListener("DOMContentLoaded", function () {
   const chargeBtn = document.getElementById("charge-btn");
   const cancelSaleBtn = document.getElementById("cancel-sale-btn");
   const saveSaleBtn = document.getElementById("save-sale-btn");
-
   const chargeModal = document.getElementById("charge-modal");
   const modalTotalElem = document.getElementById("modal-total");
   const modalCancelBtn = document.getElementById("modal-cancel-btn");
   const modalConfirmBtn = document.getElementById("modal-confirm-btn");
-
   const priceTypeSelector = document.getElementById("price-type-selector");
   const priceTypeValueInput = document.getElementById("price-type-value");
+  const addressContainer = document.getElementById("address-selection-container");
+  const addressSelect = document.getElementById("client-address-select");
+  const openPendingSalesBtn = document.getElementById("open-pending-sales-btn");
+  const pendingSalesModal = document.getElementById("pending-sales-modal");
+  const closePendingSalesModalBtn = document.getElementById("close-pending-sales-modal-btn");
+  const pendingSalesTableBody = document.getElementById("pending-sales-table-body");
+  const searchPendingSaleInput = document.getElementById("search-pending-sale");
+  const searchCartInput = document.getElementById("search-cart-item");
+  const toggleIvaCheckbox = document.getElementById("toggle-iva");
+  const searchClientSelect = $("#search-client");
+  const paymentMethodsContainer = document.getElementById("payment-methods-container");
+  const addPaymentMethodBtn = document.getElementById("add-payment-method-btn");
+  const modalAmountPaidElem = document.getElementById("modal-amount-paid");
+  const modalChangeElem = document.getElementById("modal-change");
+  const modalPendingElem = document.getElementById("modal-pending");
+  const modalChangeRow = document.getElementById("modal-change-row");
+  const modalPendingRow = document.getElementById("modal-pending-row");
+  const addClientModal = document.getElementById("add-client-modal");
+  const addNewClientBtn = document.getElementById("add-new-client-btn");
+  const closeAddClientModalBtn = document.getElementById("close-add-client-modal-btn");
+  const addClientForm = document.getElementById("add-client-form");
+  const cancelAddClientBtn = document.getElementById("cancel-add-client-btn");
+  const clientHasCreditCheckbox = document.getElementById("client-has-credit");
+  const creditLimitContainer = document.getElementById("credit-limit-container");
+  const stockCheckerModal = document.getElementById("stock-checker-modal");
+  const openStockCheckerBtn = document.getElementById("open-stock-checker-btn");
+  const closeStockCheckerModalBtn = document.getElementById("close-stock-checker-modal-btn");
+  const stockCheckerSearchInput = document.getElementById("stock-checker-search-input");
+  const stockCheckerResultsContainer = document.getElementById("stock-checker-results");
+  let stockSearchTimer;
+  const openCashModalBtn = document.getElementById('openCashModalBtn');
+  const cashOpeningModal = document.getElementById('cashOpeningModal');
+  const closeCashModalBtn = document.getElementById('closeCashModalBtn');
+  const cancelCashOpeningBtn = document.getElementById('cancelCashOpeningBtn');
+  const cashOpeningForm = document.getElementById('cashOpeningForm');
+  const montoInput = document.getElementById('monto_inicial');
+  const fechaInput = document.getElementById('fecha_apertura');
+  const modalErrorMessage = document.getElementById('modal-error-message');
 
-  // --- Niveles de precio P1..P5 ---
+  // CAMBIO: Se elimina la conexión automática a QZ Tray al cargar la página.
+  // La conexión ahora se gestiona a través del nuevo switch de impresión.
+  /*
+  if (typeof connectQz === "function") {
+    connectQz();
+  }
+  */
+
+  let allProducts = [];
+  const PRODUCTS_TO_SHOW = 20;
+  let skuBarcodeMap = {};
+  let searchAbortController = null;
+  let searchTimer = null;
+  const SEARCH_LIMIT = 50;
+  let cart = [];
+  let selectedClient = {
+    id: 1,
+    nombre: "Público en General",
+    tiene_credito: 0,
+    limite_credito: 0.0,
+    deuda_actual: 0.0,
+  };
+  let currentSaleId = null;
+  let configuredPrinter = null;
+  let applyIVA = false;
+  let allPendingSales = [];
+  let paymentInputs = [];
   let currentPriceLevel = parseInt((priceTypeValueInput && priceTypeValueInput.value) || "1", 10);
+
+  let allowNegativeStock = false;
+
+  const negativeStockToggle = document.getElementById('toggle-negative-stock');
+  if (negativeStockToggle) {
+    negativeStockToggle.addEventListener('change', (event) => {
+      allowNegativeStock = event.target.checked;
+
+      // CAMBIO: Llamamos a la nueva función que solo actualiza la vista.
+      updateProductViewability();
+
+      const statusText = allowNegativeStock ? 'Venta sin stock ACTIVADA' : 'Venta sin stock DESACTIVADA';
+      showToast(statusText, 'info');
+    });
+  }
+
+  function formatNumber(value) {
+    const number = parseFloat(value) || 0;
+    return number.toLocaleString('es-MX', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
 
   function getPriceForProduct(product, level = currentPriceLevel) {
     if (product.tipo_precio_aplicado === "Especial" && product.precio_final != null) {
@@ -36,103 +121,13 @@ document.addEventListener("DOMContentLoaded", function () {
     return parseFloat(v) || 0;
   }
 
-  const addressContainer = document.getElementById(
-    "address-selection-container"
-  );
-  const addressSelect = document.getElementById("client-address-select");
-  const openPendingSalesBtn = document.getElementById("open-pending-sales-btn");
-  const pendingSalesModal = document.getElementById("pending-sales-modal");
-  const closePendingSalesModalBtn = document.getElementById(
-    "close-pending-sales-modal-btn"
-  );
-  const pendingSalesTableBody = document.getElementById(
-    "pending-sales-table-body"
-  );
-  const searchPendingSaleInput = document.getElementById("search-pending-sale");
-
-  const searchCartInput = document.getElementById("search-cart-item");
-  const toggleIvaCheckbox = document.getElementById("toggle-iva");
-
-  const searchClientSelect = $("#search-client");
-
-  const paymentMethodsContainer = document.getElementById(
-    "payment-methods-container"
-  );
-  const addPaymentMethodBtn = document.getElementById("add-payment-method-btn");
-  const modalAmountPaidElem = document.getElementById("modal-amount-paid");
-  const modalChangeElem = document.getElementById("modal-change");
-  const modalPendingElem = document.getElementById("modal-pending");
-  const modalChangeRow = document.getElementById("modal-change-row");
-  const modalPendingRow = document.getElementById("modal-pending-row");
-
-  const addClientModal = document.getElementById("add-client-modal");
-  const addNewClientBtn = document.getElementById("add-new-client-btn");
-  const closeAddClientModalBtn = document.getElementById(
-    "close-add-client-modal-btn"
-  );
-  const addClientForm = document.getElementById("add-client-form");
-  const cancelAddClientBtn = document.getElementById("cancel-add-client-btn");
-  const clientHasCreditCheckbox = document.getElementById("client-has-credit");
-  const creditLimitContainer = document.getElementById(
-    "credit-limit-container"
-  );
-
-  const stockCheckerModal = document.getElementById("stock-checker-modal");
-  const openStockCheckerBtn = document.getElementById("open-stock-checker-btn");
-  const closeStockCheckerModalBtn = document.getElementById(
-    "close-stock-checker-modal-btn"
-  );
-  const stockCheckerSearchInput = document.getElementById(
-    "stock-checker-search-input"
-  );
-  const stockCheckerResultsContainer = document.getElementById(
-    "stock-checker-results"
-  );
-  let stockSearchTimer;
-
-  const openCashModalBtn = document.getElementById('openCashModalBtn');
-  const cashOpeningModal = document.getElementById('cashOpeningModal');
-  const closeCashModalBtn = document.getElementById('closeCashModalBtn');
-  const cancelCashOpeningBtn = document.getElementById('cancelCashOpeningBtn');
-  const cashOpeningForm = document.getElementById('cashOpeningForm');
-  const montoInput = document.getElementById('monto_inicial');
-  const fechaInput = document.getElementById('fecha_apertura');
-  const modalErrorMessage = document.getElementById('modal-error-message');
-
-  if (typeof connectQz === "function") {
-    connectQz();
-  }
-
-  let allProducts = [];
-  // Only render the first N products when the page loads to avoid
-  // overloading the browser with thousands of product cards at once.  The
-  // user can still search the complete list of products by name, SKU or
-  // barcode.  Adjust PRODUCTS_TO_SHOW if you want to increase or decrease
-  // how many items are rendered initially.
-  const PRODUCTS_TO_SHOW = 20;
-
-  // When a product list is loaded we build a lookup table that maps both
-  // SKU values and each individual barcode to the product object.  This
-  // table is used by the barcode scanner so that a scan does not need to
-  // iterate over every product in the allProducts array.  Searching the
-  // object is O(1) which makes scans instantaneous even on large
-  // product catalogues.
-  let skuBarcodeMap = {};
-
-  /**
-   * Build a lookup table keyed by SKU and barcode.
-   *
-   * @param {Array} products Array of product objects returned by the API.
-   */
   function buildSkuBarcodeMap(products) {
     skuBarcodeMap = {};
     products.forEach((product) => {
-      // map the SKU if present
       if (product.sku) {
         const skuKey = String(product.sku).trim();
         skuBarcodeMap[skuKey] = product;
       }
-      // map each barcode; codigos_barras may be a comma-separated string
       if (product.codigos_barras) {
         product.codigos_barras
           .split(',')
@@ -145,11 +140,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // --- Búsqueda en backend ---
-  let searchAbortController = null;
-  let searchTimer = null;
-  const SEARCH_LIMIT = 50;
-
   async function searchProductsBackend(query) {
     if (searchAbortController) {
       try { searchAbortController.abort(); } catch (_) { }
@@ -161,8 +151,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const resp = await fetch(url, { signal });
       const result = await resp.json();
       if (result.success) {
-        // Reemplaza el conjunto visible con los resultados
-        allProducts = result.data; // mantenemos compat con render/addProductToCart
+        allProducts = result.data;
         renderProducts(allProducts);
       } else {
         productListContainer.innerHTML = `<p class="text-gray-500">Sin resultados.</p>`;
@@ -174,19 +163,33 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   }
-  let cart = [];
-  let selectedClient = {
-    id: 1,
-    nombre: "Público en General",
-    tiene_credito: 0,
-    limite_credito: 0.0,
-    deuda_actual: 0.0,
-  };
-  let currentSaleId = null;
-  let configuredPrinter = null;
-  let applyIVA = false;
-  let allPendingSales = [];
-  let paymentInputs = [];
+
+  // AÑADE ESTA NUEVA FUNCIÓN EN pos.js
+
+  /**
+   * Actualiza la apariencia de los productos visibles en la pantalla
+   * para reflejar si se pueden vender productos sin stock o no.
+   * Es una operación rápida que no recarga productos.
+   */
+  function updateProductViewability() {
+    const productCards = document.querySelectorAll('.product-card');
+
+    productCards.forEach(card => {
+      const productId = parseInt(card.dataset.productId, 10);
+      const productData = allProducts.find(p => p.id === productId);
+
+      if (productData) {
+        // La misma lógica de 'renderProducts' pero aplicada a las tarjetas existentes
+        const isOutOfStock = productData.stock <= 0 && !allowNegativeStock;
+
+        if (isOutOfStock) {
+          card.classList.add('out-of-stock');
+        } else {
+          card.classList.remove('out-of-stock');
+        }
+      }
+    });
+  }
 
   async function fetchProducts() {
     try {
@@ -194,11 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const result = await response.json();
       if (result.success) {
         allProducts = result.data;
-        // Build the lookup map once products are loaded
         buildSkuBarcodeMap(allProducts);
-        // Show only the first PRODUCTS_TO_SHOW items in the UI.  The
-        // complete list remains in allProducts so that searching and
-        // barcode scanning still work against the full catalogue.
         renderProducts(allProducts.slice(0, PRODUCTS_TO_SHOW));
       } else {
         productListContainer.innerHTML = `<p class="text-red-500">Error al cargar productos.</p>`;
@@ -209,18 +208,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  async function fetchPrinterConfig() {
-    try {
-      const response = await fetch(`${BASE_URL}/getPrinterConfig`);
-      const result = await response.json();
-      if (result.success && result.data.impresora_tickets) {
-        configuredPrinter = result.data.impresora_tickets;
-      }
-    } catch (error) {
-      console.error("No se pudo cargar la configuración de la impresora.", error);
-    }
-  }
-
+  // CAMBIO EN pos.js
   function renderProducts(products) {
     productListContainer.innerHTML = "";
     if (products.length === 0) {
@@ -230,37 +218,30 @@ document.addEventListener("DOMContentLoaded", function () {
     products.forEach((product) => {
       const productCard = document.createElement("div");
       const stock = product.stock || 0;
-      const isOutOfStock = stock <= 0;
-
+      const isOutOfStock = stock <= 0 && !allowNegativeStock;
       productCard.className = `product-card ${isOutOfStock ? 'out-of-stock' : ''}`;
       productCard.dataset.productId = product.id;
       productCard.title = String(product.nombre || '');
       productCard.setAttribute('aria-label', productCard.title);
-
-      const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(
-        product.nombre.substring(0, 8)
-      )}`;
-
+      const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(product.nombre.substring(0, 8))}`;
       const stockClass = isOutOfStock ? 'zero-stock' : '';
       const stockText = isOutOfStock ? 'Agotado' : `Stock: ${stock}`;
-
       productCard.innerHTML = `
           <img src="${imageUrl}" alt="${product.nombre}" class="product-card-image">
           <div class="flex-1 flex flex-col justify-between">
             <div class="font-bold text-white text-sm mb-1 truncate">${product.nombre}</div>
             <div class="text-xs text-gray-400 mb-2 product-card-stock ${stockClass}">${stockText}</div>
-            <div class="text-lg font-mono text-green-400">$${getPriceForProduct(product).toFixed(2)}</div>
-          </div>
-      `;
+            <div class="font-mono text-green-400 text-xs">$${formatNumber(getPriceForProduct(product))}</div>
+          </div>`; // CAMBIO AQUÍ
       productCard.addEventListener("click", () => addProductToCart(product.id));
       productListContainer.appendChild(productCard);
     });
   }
 
+  // CAMBIO EN pos.js
   function renderCart() {
     cartItemsContainer.innerHTML = "";
     const searchTerm = searchCartInput.value.toLowerCase();
-
     const filteredCart = cart.filter(
       (item) =>
         item.nombre.toLowerCase().includes(searchTerm) ||
@@ -274,11 +255,7 @@ document.addEventListener("DOMContentLoaded", function () {
       filteredCart.forEach((item) => {
         const cartItem = document.createElement("div");
         cartItem.className = "cart-item";
-
-        const imageUrl = `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent(
-          item.nombre.substring(0, 5)
-        )}`;
-
+        const imageUrl = `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent(item.nombre.substring(0, 5))}`;
         let priceTypeLabel = "";
         if (item.tipo_precio_aplicado === "Especial") {
           priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';
@@ -287,7 +264,6 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (String(item.tipo_precio_aplicado || '').startsWith('P')) {
           priceTypeLabel = `<span class="text-xxs text-blue-400">${item.tipo_precio_aplicado}</span> `;
         }
-
         cartItem.innerHTML = `
             <img src="${imageUrl}" alt="${item.nombre}" class="cart-item-image">
             <div class="flex-1">
@@ -303,7 +279,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         <option value="P5" ${item.tipo_precio_aplicado === 'P5' ? 'selected' : ''}>P5</option>
                     </select>
                     <span class="editable-price" data-id="${item.id}" data-price="${item.precio_final}">
-                        $${parseFloat(item.precio_final).toFixed(2)}
+                        $${formatNumber(item.precio_final)}
                     </span>
                 </p>
             </div>
@@ -313,12 +289,11 @@ document.addEventListener("DOMContentLoaded", function () {
                     <input type="number" min="1" class="quantity-input w-16 bg-gray-600 text-white rounded text-center text-sm px-1 mx-1 focus:outline-none focus:ring-1 focus:ring-blue-400" data-id="${item.id}" value="${item.quantity}" />
                     <button data-id="${item.id}" class="quantity-change" data-action="increase">+</button>
                 </div>
-                <div class="text-right font-mono text-base ml-2 line-total" data-id="${item.id}">$${(item.quantity * item.precio_final).toFixed(2)}</div>
+                <div class="text-right font-mono text-base ml-2 line-total" data-id="${item.id}">$${formatNumber(item.quantity * item.precio_final)}</div>
                 <button data-id="${item.id}" class="remove-item-btn text-red-400 hover:text-red-300 p-1 ml-1 rounded-full">
                     <i class="fas fa-trash-alt"></i>
                 </button>
-            </div>
-        `;
+            </div>`; // CAMBIOS EN ESTE BLOQUE
         cartItemsContainer.appendChild(cartItem);
       });
     }
@@ -327,42 +302,55 @@ document.addEventListener("DOMContentLoaded", function () {
     addPriceEditListeners();
   }
 
-  // ... (El resto de tus funciones como openStockCheckerModal, updateTotals, etc., permanecen igual)
+  // CAMBIO EN pos.js
 
-  // --- Lógica del Carrito y Venta ---
   async function addProductToCart(productId) {
     const productInfo = allProducts.find((p) => p.id == productId);
-    if (productInfo && (productInfo.stock || 0) <= 0) {
-      showToast("Producto sin stock.", "error");
+
+    // Esta primera validación es correcta, la mantenemos.
+    if (!productInfo) {
+      showToast("Producto no encontrado.", "error");
+      return;
+    }
+    if (productInfo.stock <= 0 && !allowNegativeStock) {
+      showToast("Producto agotado.", "error");
       return;
     }
 
     const cartItem = cart.find((item) => item.id == productId);
+
+    // Lógica para cuando el producto YA ESTÁ en el carrito
     if (cartItem) {
-      if (productInfo && cartItem.quantity < productInfo.stock) {
+      // CAMBIO: Permitimos incrementar la cantidad si la venta sin stock está activa,
+      // o si la cantidad es menor que el stock disponible.
+      if (allowNegativeStock || (productInfo && cartItem.quantity < productInfo.stock)) {
         cartItem.quantity++;
         renderCart();
-      } else if (productInfo) {
+      } else {
         showToast("Stock máximo alcanzado en el carrito.", "error");
       }
       return;
     }
 
+    // Lógica para cuando el producto se agrega POR PRIMERA VEZ al carrito
     try {
       const response = await fetch(`${BASE_URL}/getProductForPOS?id_producto=${productId}&id_cliente=${selectedClient.id}`);
       const result = await response.json();
       if (result.success) {
         const product = result.data;
-        if ((product.stock || 0) <= 0) {
+
+        // CAMBIO: Se añade la condición !allowNegativeStock a la validación de stock
+        // para permitir agregar productos aunque la base de datos reporte 0.
+        if ((product.stock || 0) <= 0 && !allowNegativeStock) {
           showToast("Producto sin stock.", "error");
           return;
         }
 
+        // El resto de la lógica para asignar precio se mantiene
         if (product.tipo_precio_aplicado !== "Especial") {
           product.precio_final = getPriceForProduct(product, currentPriceLevel);
           product.tipo_precio_aplicado = `P${currentPriceLevel}`;
         }
-
         cart.push({ ...product, quantity: 1, id: product.id });
         renderCart();
       } else {
@@ -376,11 +364,9 @@ document.addEventListener("DOMContentLoaded", function () {
   function filterProducts() {
     const query = searchProductInput.value.trim();
     if (!query) {
-      // Sin búsqueda: solo mostrar primeros N ya cargados
       renderProducts(allProducts.slice(0, PRODUCTS_TO_SHOW));
       return;
     }
-    // Debounce 250ms y buscar en backend
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       searchProductsBackend(query);
@@ -392,8 +378,6 @@ document.addEventListener("DOMContentLoaded", function () {
     event.preventDefault();
     const code = searchProductInput.value.trim();
     if (code === "") return;
-
-    // 1) Intento rápido en memoria (si casualmente está en el subset cargado)
     let product = skuBarcodeMap[code] || null;
     if (product) {
       addProductToCart(product.id);
@@ -401,8 +385,6 @@ document.addEventListener("DOMContentLoaded", function () {
       filterProducts();
       return;
     }
-
-    // 2) Fallback: consulta al backend por SKU o código de barras
     try {
       const resp = await fetch(`${BASE_URL}/getProductByBarcode?code=${encodeURIComponent(code)}`);
       const json = await resp.json();
@@ -418,12 +400,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // --- Asignación de Eventos ---
-  searchProductInput.addEventListener("input", filterProducts);
-  searchProductInput.addEventListener("keydown", handleBarcodeScan);
-
-  // ... (El resto de tu código y funciones permanecen igual)
-  // --- (Pego el resto de tu código original para que esté completo) ---
+  // --- El resto de tus funciones (manejo de modales, totales, etc.) ---
+  // --- (No se necesitan cambios en las siguientes funciones) ---
 
   function openStockCheckerModal() {
     stockCheckerModal.classList.remove("hidden");
@@ -438,22 +416,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function searchStockAcrossBranches() {
     const searchTerm = stockCheckerSearchInput.value.trim();
-
     if (searchTerm.length < 3) {
       stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">Introduce al menos 3 caracteres para buscar.</div>`;
       return;
     }
-
     stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">Buscando...</div>`;
-
     try {
-      const response = await fetch(
-        `${BASE_URL}/getStockAcrossBranches?term=${encodeURIComponent(
-          searchTerm
-        )}`
-      );
+      const response = await fetch(`${BASE_URL}/getStockAcrossBranches?term=${encodeURIComponent(searchTerm)}`);
       const result = await response.json();
-
       if (result.success) {
         renderStockResults(result.data);
       } else {
@@ -470,60 +440,46 @@ document.addEventListener("DOMContentLoaded", function () {
       stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">No se encontraron productos que coincidan con la búsqueda.</div>`;
       return;
     }
-
     let html = "";
     products.forEach((product) => {
       html += `
         <div class="bg-gray-800 p-4 rounded-lg mb-3">
           <h3 class="text-lg font-bold text-white">${product.producto_nombre}</h3>
           <p class="text-sm text-gray-400 mb-3">SKU: ${product.sku}</p>
-          <ul class="space-y-2">
-      `;
+          <ul class="space-y-2">`;
       product.sucursales.forEach((sucursal) => {
-        const stockClass =
-          sucursal.stock > 0 ? "text-green-400" : "text-red-400";
+        const stockClass = sucursal.stock > 0 ? "text-green-400" : "text-red-400";
         const formattedStock = parseInt(sucursal.stock).toLocaleString('es-MX');
-        const stockText =
-          sucursal.stock > 0 ? `${formattedStock} en stock` : "Agotado";
-
+        const stockText = sucursal.stock > 0 ? `${formattedStock} en stock` : "Agotado";
         html += `
           <li class="flex justify-between items-center text-sm bg-gray-700/50 px-3 py-2 rounded-md">
             <span><i class="fas fa-store mr-2 text-gray-500"></i>${sucursal.nombre}</span>
             <span class="font-semibold ${stockClass}">${stockText}</span>
-          </li>
-        `;
+          </li>`;
       });
-      html += `
-          </ul>
-        </div>
-      `;
+      html += `</ul></div>`;
     });
     stockCheckerResultsContainer.innerHTML = html;
   }
 
+
   function updateTotals() {
-    const subtotal = cart.reduce(
-      (sum, item) => sum + item.quantity * item.precio_final,
-      0
-    );
+    const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.precio_final, 0);
     let tax = 0;
     if (applyIVA) {
       tax = subtotal * 0.16;
     }
     const total = subtotal + tax;
-
-    subtotalElem.textContent = `$${total.toFixed(2)}`;
-    taxElem.textContent = `$${tax.toFixed(2)}`;
-    totalElem.textContent = `$${total.toFixed(2)}`;
+    // CAMBIO: Se corrigió subtotalElem para que muestre el subtotal y se aplicó el formato a los tres.
+    subtotalElem.textContent = `$${formatNumber(subtotal)}`;
+    taxElem.textContent = `$${formatNumber(tax)}`;
+    totalElem.textContent = `$${formatNumber(total)}`;
   }
 
   function addPriceEditListeners() {
     document.querySelectorAll(".editable-price").forEach((priceSpan) => {
-      if (priceSpan.dataset.hasListener === "true") {
-        return;
-      }
+      if (priceSpan.dataset.hasListener === "true") return;
       priceSpan.dataset.hasListener = "true";
-
       priceSpan.addEventListener("click", function () {
         const currentPrice = parseFloat(this.dataset.price);
         const productId = this.dataset.id;
@@ -531,69 +487,49 @@ document.addEventListener("DOMContentLoaded", function () {
         input.type = "number";
         input.step = "0.01";
         input.value = currentPrice.toFixed(2);
-        input.className =
-          "w-24 bg-gray-600 text-white rounded text-center text-sm px-1 focus:outline-none focus:ring-1 focus:ring-blue-400";
+        input.className = "w-24 bg-gray-600 text-white rounded text-center text-sm px-1 focus:outline-none focus:ring-1 focus:ring-blue-400";
         input.dataset.id = productId;
-
         this.replaceWith(input);
         input.focus();
-
         let savingPrice = false;
-
         const saveNewPrice = async () => {
           if (savingPrice) return;
           savingPrice = true;
-
           let newPrice = parseFloat(input.value);
           if (isNaN(newPrice) || newPrice <= 0) {
             showToast("El precio debe ser un número positivo.", "error");
             newPrice = currentPrice;
           }
-
           const cartItem = cart.find((item) => item.id == productId);
           if (cartItem) {
             cartItem.precio_final = newPrice;
             cartItem.tipo_precio_aplicado = "Especial";
-
             if (selectedClient.id !== 1) {
               try {
-                const response = await fetch(
-                  `${BASE_URL}/saveSpecialClientPrice`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      id_cliente: selectedClient.id,
-                      id_producto: productId,
-                      precio_especial: newPrice,
-                    }),
-                  }
-                );
+                const response = await fetch(`${BASE_URL}/saveSpecialClientPrice`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    id_cliente: selectedClient.id,
+                    id_producto: productId,
+                    precio_especial: newPrice,
+                  }),
+                });
                 const result = await response.json();
                 if (result.success) {
-                  showToast(
-                    "Precio especial guardado para " + selectedClient.nombre,
-                    "success"
-                  );
+                  showToast("Precio especial guardado para " + selectedClient.nombre, "success");
                 } else {
-                  showToast(
-                    "Error al guardar precio especial: " + result.message,
-                    "error"
-                  );
+                  showToast("Error al guardar precio especial: " + result.message, "error");
                 }
               } catch (error) {
                 console.error("Error al guardar precio especial:", error);
-                showToast(
-                  "Error de conexión al guardar precio especial.",
-                  "error"
-                );
+                showToast("Error de conexión al guardar precio especial.", "error");
               }
             }
           }
           renderCart();
           savingPrice = false;
         };
-
         input.addEventListener("blur", saveNewPrice);
         input.addEventListener("keydown", function (event) {
           if (event.key === "Enter") {
@@ -623,14 +559,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  
-  // Permitir editar cantidad directamente en el input
   function handleQuantityInput(event) {
     const input = event.target.closest(".quantity-input");
     if (!input) return;
     const id = input.dataset.id;
     let val = parseInt(input.value, 10);
-    if (isNaN(val)) return; // permitir escribir
+    if (isNaN(val)) return;
     if (val < 1) val = 1;
     const item = cart.find((i) => i.id == id);
     if (!item) return;
@@ -639,7 +573,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (val > product.stock) val = product.stock;
     }
     item.quantity = val;
-    // Actualiza total por línea sin re-render completo
     const line = cartItemsContainer.querySelector(`.line-total[data-id="${id}"]`);
     if (line) line.textContent = `$${(item.quantity * item.precio_final).toFixed(2)}`;
     updateTotals();
@@ -664,16 +597,16 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
     item.quantity = val;
-    renderCart(); // re-render para mantener select de precio y botones en sync
+    renderCart();
   }
-function handleQuantityChange(event) {
+
+  function handleQuantityChange(event) {
     const button = event.target.closest(".quantity-change");
     if (!button) return;
     const productId = button.dataset.id;
     const action = button.dataset.action;
     const cartItem = cart.find((item) => item.id == productId);
     if (!cartItem) return;
-
     if (action === "increase") {
       const product = allProducts.find((p) => p.id == productId);
       if (product && cartItem.quantity < product.stock) {
@@ -681,10 +614,7 @@ function handleQuantityChange(event) {
       } else if (product) {
         showToast("Stock máximo alcanzado en el carrito.", "error");
       } else {
-        showToast(
-          "Error: Información de producto no disponible para validar stock.",
-          "error"
-        );
+        showToast("Error: Información de producto no disponible para validar stock.", "error");
       }
     } else if (action === "decrease") {
       cartItem.quantity--;
@@ -702,15 +632,12 @@ function handleQuantityChange(event) {
 
   async function selectClient(client, confirmAction = true) {
     if (confirmAction && cart.length > 0) {
-      const confirmed = await showConfirm(
-        "Al cambiar de cliente, el carrito se vaciará para recalcular los precios. ¿Desea continuar?"
-      );
+      const confirmed = await showConfirm("Al cambiar de cliente, el carrito se vaciará para recalcular los precios. ¿Desea continuar?");
       if (!confirmed) {
         searchClientSelect.val(selectedClient.id).trigger("change");
         return;
       }
     }
-
     try {
       const response = await fetch(`${BASE_URL}/getClient?id=${client.id}`);
       const result = await response.json();
@@ -743,13 +670,7 @@ function handleQuantityChange(event) {
 
   function resetSale() {
     cart = [];
-    selectedClient = {
-      id: 1,
-      nombre: "Público en General",
-      tiene_credito: 0,
-      limite_credito: 0.0,
-      deuda_actual: 0.0,
-    };
+    selectedClient = { id: 1, nombre: "Público en General", tiene_credito: 0, limite_credito: 0.0, deuda_actual: 0.0 };
     populateAddresses([]);
     renderCart();
     searchClientSelect.val("1").trigger("change");
@@ -758,14 +679,9 @@ function handleQuantityChange(event) {
     searchCartInput.value = "";
     toggleIvaCheckbox.checked = false;
     applyIVA = false;
-
     if (priceTypeSelector) {
-      priceTypeSelector
-        .querySelector(".price-type-btn.active-price-type")
-        ?.classList.remove("active-price-type");
-      priceTypeSelector
-        .querySelector('button[data-level="1"]')
-        ?.classList.add("active-price-type");
+      priceTypeSelector.querySelector(".price-type-btn.active-price-type")?.classList.remove("active-price-type");
+      priceTypeSelector.querySelector('button[data-level="1"]')?.classList.add("active-price-type");
     }
     if (priceTypeValueInput) {
       priceTypeValueInput.value = "1";
@@ -774,109 +690,61 @@ function handleQuantityChange(event) {
 
   async function cancelSale() {
     if (cart.length > 0) {
-      const confirmed = await showConfirm(
-        "¿Desea cancelar la venta? Se limpiará el carrito."
-      );
+      const confirmed = await showConfirm("¿Desea cancelar la venta? Se limpiará el carrito.");
       if (confirmed) resetSale();
     }
   }
 
   function addPaymentMethodInput(method = "Efectivo", amount = 0) {
     const paymentMethodDiv = document.createElement("div");
-    paymentMethodDiv.className =
-      "flex items-center space-x-2 mb-2 payment-input-row";
-
+    paymentMethodDiv.className = "flex items-center space-x-2 mb-2 payment-input-row";
     const paymentMethods = ["Efectivo", "Tarjeta", "Transferencia", "Crédito"];
-    const optionsHtml = paymentMethods
-      .map(
-        (m) =>
-          `<option value="${m}" ${m === method ? "selected" : ""}>${m}</option>`
-      )
-      .join("");
-
+    const optionsHtml = paymentMethods.map((m) => `<option value="${m}" ${m === method ? "selected" : ""}>${m}</option>`).join("");
     paymentMethodDiv.innerHTML = `
-        <select class="payment-method-select w-1/2 bg-gray-700 text-white rounded-md p-2 border border-gray-600">
-            ${optionsHtml}
-        </select>
-        <input type="number" step="0.01" value="${amount.toFixed(
-      2
-    )}" placeholder="Monto"
-               class="payment-amount-input w-1/2 bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]" />
-        <button class="remove-payment-method-btn text-red-400 hover:text-red-300 p-2">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
+        <select class="payment-method-select w-1/2 bg-gray-700 text-white rounded-md p-2 border border-gray-600">${optionsHtml}</select>
+        <input type="number" step="0.01" value="${amount.toFixed(2)}" placeholder="Monto" class="payment-amount-input w-1/2 bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]" />
+        <button class="remove-payment-method-btn text-red-400 hover:text-red-300 p-2"><i class="fas fa-times"></i></button>`;
     paymentMethodsContainer.appendChild(paymentMethodDiv);
-
     const amountInput = paymentMethodDiv.querySelector(".payment-amount-input");
-    const methodSelect = paymentMethodDiv.querySelector(
-      ".payment-method-select"
-    );
-
+    const methodSelect = paymentMethodDiv.querySelector(".payment-method-select");
     amountInput.addEventListener("input", updatePaymentTotals);
     methodSelect.addEventListener("change", () => {
       if (methodSelect.value === "Crédito") {
         const totalToPay = parseFloat(totalElem.textContent.replace("$", ""));
         const currentNonCreditPaid = getCurrentNonCreditPaidAmount(amountInput);
         const remainingToPay = totalToPay - currentNonCreditPaid;
-
         if (selectedClient.id === 1) {
-          showToast(
-            "El crédito no se aplica al cliente 'Público en General'. Por favor, selecciona otro método de pago o un cliente registrado.",
-            "error"
-          );
+          showToast("El crédito no se aplica al cliente 'Público en General'. Por favor, selecciona otro método de pago o un cliente registrado.", "error");
           amountInput.value = (0).toFixed(2);
           methodSelect.value = "Efectivo";
         } else if (selectedClient.tiene_credito === 0) {
-          showToast(
-            `El cliente '${selectedClient.nombre}' no tiene una línea de crédito activada.`,
-            "error"
-          );
+          showToast(`El cliente '${selectedClient.nombre}' no tiene una línea de crédito activada.`, "error");
           amountInput.value = (0).toFixed(2);
           methodSelect.value = "Efectivo";
         } else {
-          const availableCredit =
-            selectedClient.limite_credito - selectedClient.deuda_actual;
+          const availableCredit = selectedClient.limite_credito - selectedClient.deuda_actual;
           if (availableCredit <= 0) {
-            showToast(
-              `El cliente '${selectedClient.nombre
-              }' no tiene crédito disponible. Deuda actual: $${selectedClient.deuda_actual.toFixed(
-                2
-              )} / Límite: $${selectedClient.limite_credito.toFixed(2)}`,
-              "error"
-            );
+            showToast(`El cliente '${selectedClient.nombre}' no tiene crédito disponible. Deuda actual: $${selectedClient.deuda_actual.toFixed(2)} / Límite: $${selectedClient.limite_credito.toFixed(2)}`, "error");
             amountInput.value = (0).toFixed(2);
             methodSelect.value = "Efectivo";
           } else {
-            amountInput.value = Math.min(
-              remainingToPay,
-              availableCredit
-            ).toFixed(2);
+            amountInput.value = Math.min(remainingToPay, availableCredit).toFixed(2);
           }
         }
       } else {
-        const hasCreditPaymentAlready = Array.from(
-          document.querySelectorAll(".payment-method-select")
-        ).some(
-          (select) => select.value === "Crédito" && select !== methodSelect
-        );
-
+        const hasCreditPaymentAlready = Array.from(document.querySelectorAll(".payment-method-select")).some((select) => select.value === "Crédito" && select !== methodSelect);
         if (paymentInputs.length === 1 || !hasCreditPaymentAlready) {
           const totalToPay = parseFloat(totalElem.textContent.replace("$", ""));
-          const currentNonCreditPaid =
-            getCurrentNonCreditPaidAmount(amountInput);
+          const currentNonCreditPaid = getCurrentNonCreditPaidAmount(amountInput);
           amountInput.value = (totalToPay - currentNonCreditPaid).toFixed(2);
         }
       }
       updatePaymentTotals();
     });
-
-    paymentMethodDiv
-      .querySelector(".remove-payment-method-btn")
-      .addEventListener("click", () => {
-        paymentMethodDiv.remove();
-        updatePaymentTotals();
-      });
+    paymentMethodDiv.querySelector(".remove-payment-method-btn").addEventListener("click", () => {
+      paymentMethodDiv.remove();
+      updatePaymentTotals();
+    });
     paymentInputs.push(amountInput);
     updatePaymentTotals();
   }
@@ -899,16 +767,13 @@ function handleQuantityChange(event) {
     let hasCreditPayment = false;
     let creditExceeded = false;
     let creditNotAllowed = false;
-
     paymentInputs = [];
     document.querySelectorAll(".payment-input-row").forEach((row) => {
       const amountInput = row.querySelector(".payment-amount-input");
       const methodSelect = row.querySelector(".payment-method-select");
       const amount = parseFloat(amountInput.value) || 0;
-
       totalPaid += amount;
       paymentInputs.push(amountInput);
-
       if (methodSelect.value === "Crédito") {
         hasCreditPayment = true;
         creditAmount += amount;
@@ -917,74 +782,55 @@ function handleQuantityChange(event) {
         } else if (selectedClient.tiene_credito === 0) {
           creditNotAllowed = true;
         } else {
-          const availableCredit =
-            selectedClient.limite_credito - selectedClient.deuda_actual;
+          const availableCredit = selectedClient.limite_credito - selectedClient.deuda_actual;
           if (creditAmount > availableCredit) {
             creditExceeded = true;
           }
         }
       }
     });
-
-    const totalToPay = parseFloat(totalElem.textContent.replace("$", ""));
+    const totalToPay = parseFloat(totalElem.textContent.replace(/[\$,]/g, "")) || 0;
     const change = totalPaid - totalToPay;
     const pending = totalToPay - totalPaid;
 
-    modalAmountPaidElem.textContent = `$${totalPaid.toFixed(2)}`;
-
+    modalAmountPaidElem.textContent = `$${formatNumber(totalPaid)}`;
     if (change >= 0) {
-      modalChangeElem.textContent = `$${change.toFixed(2)}`;
+      modalChangeElem.textContent = `$${formatNumber(change)}`;
       modalChangeRow.classList.remove("hidden");
       modalPendingRow.classList.add("hidden");
     } else {
-      modalPendingElem.textContent = `$${Math.abs(pending).toFixed(2)}`;
+      modalPendingElem.textContent = `$${formatNumber(Math.abs(pending))}`;
       modalChangeRow.classList.add("hidden");
       modalPendingRow.classList.remove("hidden");
     }
-
-    modalConfirmBtn.disabled =
-      totalPaid < totalToPay || creditExceeded || creditNotAllowed;
-
+    modalConfirmBtn.disabled = totalPaid < totalToPay || creditExceeded || creditNotAllowed;
     if (modalConfirmBtn.disabled && hasCreditPayment) {
       if (creditNotAllowed) {
         if (selectedClient.id === 1) {
-          showToast(
-            "El crédito no se aplica al cliente 'Público en General'.",
-            "error"
-          );
+          showToast("El crédito no se aplica al cliente 'Público en General'.", "error");
         } else {
-          showToast(
-            `El cliente '${selectedClient.nombre}' no tiene una línea de crédito activada.`,
-            "error"
-          );
+          showToast(`El cliente '${selectedClient.nombre}' no tiene una línea de crédito activada.`, "error");
         }
       } else if (creditExceeded) {
-        const availableCredit =
-          selectedClient.limite_credito - selectedClient.deuda_actual;
-        showToast(
-          `Crédito insuficiente para '${selectedClient.nombre
-          }'. Disponible: $${Math.max(0, availableCredit).toFixed(2)}`,
-          "error"
-        );
+        const availableCredit = selectedClient.limite_credito - selectedClient.deuda_actual;
+        showToast(`Crédito insuficiente para '${selectedClient.nombre}'. Disponible: $${Math.max(0, availableCredit).toFixed(2)}`, "error");
       }
     }
   }
 
+  // CAMBIO EN pos.js
   function showChargeModal() {
     if (cart.length === 0) {
       showToast("El carrito está vacío.", "error");
       return;
     }
     modalTotalElem.textContent = totalElem.textContent;
-
     paymentMethodsContainer.innerHTML = "";
     paymentInputs = [];
-    addPaymentMethodInput(
-      "Efectivo",
-      parseFloat(totalElem.textContent.replace("$", ""))
-    );
+    // CAMBIO: Se usa una expresión regular para quitar '$' y ','
+    const totalAmount = parseFloat(totalElem.textContent.replace(/[\$,]/g, ""));
+    addPaymentMethodInput("Efectivo", totalAmount);
     updatePaymentTotals();
-
     chargeModal.classList.remove("hidden");
   }
 
@@ -996,66 +842,49 @@ function handleQuantityChange(event) {
     const payments = [];
     document.querySelectorAll(".payment-input-row").forEach((row) => {
       const method = row.querySelector(".payment-method-select").value;
-      const amount =
-        parseFloat(row.querySelector(".payment-amount-input").value) || 0;
+      const amount = parseFloat(row.querySelector(".payment-amount-input").value) || 0;
       if (amount > 0) {
         payments.push({ method: method, amount: amount });
       }
     });
-
     if (payments.length === 0) {
       showToast("Debe añadir al menos un método de pago.", "error");
       return;
     }
-
     let creditPaymentAmount = 0;
     for (const p of payments) {
       if (p.method === "Crédito") {
         creditPaymentAmount += p.amount;
       }
     }
-
     if (creditPaymentAmount > 0) {
       if (selectedClient.id === 1) {
-        showToast(
-          "Error: El crédito no se aplica al cliente 'Público en General'. Por favor, selecciona otro método de pago o un cliente registrado.",
-          "error"
-        );
+        showToast("Error: El crédito no se aplica al cliente 'Público en General'. Por favor, selecciona otro método de pago o un cliente registrado.", "error");
         return;
       }
       if (selectedClient.tiene_credito === 0) {
-        showToast(
-          `Error: El cliente '${selectedClient.nombre}' no tiene una línea de crédito activada.`,
-          "error"
-        );
+        showToast(`Error: El cliente '${selectedClient.nombre}' no tiene una línea de crédito activada.`, "error");
         return;
       }
-      const availableCredit =
-        selectedClient.limite_credito - selectedClient.deuda_actual;
+      const availableCredit = selectedClient.limite_credito - selectedClient.deuda_actual;
       if (creditPaymentAmount > availableCredit) {
-        showToast(
-          `Error: El monto de crédito excede el disponible para '${selectedClient.nombre
-          }'. Disponible: $${availableCredit.toFixed(2)}`,
-          "error"
-        );
+        showToast(`Error: El monto de crédito excede el disponible para '${selectedClient.nombre}'. Disponible: $${availableCredit.toFixed(2)}`, "error");
         return;
       }
     }
-
     const saleData = {
       id_cliente: selectedClient.id,
       id_direccion_envio: addressSelect.value || null,
       cart: cart,
-      total: parseFloat(totalElem.textContent.replace("$", "")),
+      total: parseFloat(totalElem.textContent.replace(/[\$,]/g, "")),
       payments: payments,
       estado: "Completada",
       iva_aplicado: applyIVA ? 1 : 0,
+      allow_negative_stock: allowNegativeStock,
     };
-
     if (currentSaleId) {
       saleData.id_venta = currentSaleId;
     }
-
     try {
       const response = await fetch(`${BASE_URL}/processSale`, {
         method: "POST",
@@ -1064,12 +893,7 @@ function handleQuantityChange(event) {
       });
       const result = await response.json();
       if (result.success) {
-        showToast(
-          currentSaleId
-            ? "Venta completada exitosamente."
-            : "Venta registrada exitosamente.",
-          "success"
-        );
+        showToast(currentSaleId ? "Venta completada exitosamente." : "Venta registrada exitosamente.", "success");
         if (result.id_venta) {
           await triggerPrint(result.id_venta);
         }
@@ -1085,29 +909,25 @@ function handleQuantityChange(event) {
     }
   }
 
+  // CAMBIO EN pos.js
   async function handleSaveSale() {
     if (cart.length === 0 || !selectedClient || selectedClient.id === 1) {
-      showToast(
-        "Debe seleccionar un cliente y tener productos en el carrito para guardar la venta.",
-        "error"
-      );
+      showToast("Debe seleccionar un cliente y tener productos en el carrito para guardar la venta.", "error");
       return;
     }
-
     const saleData = {
       id_cliente: selectedClient.id,
       id_direccion_envio: addressSelect.value || null,
       cart: cart,
-      total: parseFloat(totalElem.textContent.replace("$", "")),
+      // CAMBIO: Se usa una expresión regular para quitar '$' y ',' antes de convertir a número.
+      total: parseFloat(totalElem.textContent.replace(/[\$,]/g, "")),
       estado: "Pendiente",
       iva_aplicado: applyIVA ? 1 : 0,
       payments: [],
     };
-
     if (currentSaleId) {
       saleData.id_venta = currentSaleId;
     }
-
     try {
       const response = await fetch(`${BASE_URL}/saveSale`, {
         method: "POST",
@@ -1116,12 +936,7 @@ function handleQuantityChange(event) {
       });
       const result = await response.json();
       if (result.success) {
-        showToast(
-          currentSaleId
-            ? "Venta actualizada exitosamente."
-            : "Venta guardada exitosamente.",
-          "success"
-        );
+        showToast(currentSaleId ? "Venta actualizada exitosamente." : "Venta guardada exitosamente.", "success");
         resetSale();
       } else {
         showToast(result.message, "error");
@@ -1132,112 +947,8 @@ function handleQuantityChange(event) {
   }
 
   function toggleSaveButton() {
-    saveSaleBtn.disabled = !(
-      selectedClient &&
-      selectedClient.id !== 1 &&
-      cart.length > 0
-    );
+    saveSaleBtn.disabled = !(selectedClient && selectedClient.id !== 1 && cart.length > 0);
   }
-
-  async function triggerPrint(saleId) {
-    if (typeof qz === "undefined" || !qz.websocket.isActive()) {
-      showToast(
-        "QZ Tray no está conectado. No se puede imprimir el ticket.",
-        "warning"
-      );
-      return;
-    }
-
-    if (!configuredPrinter) {
-      showToast(
-        "Impresora no configurada. Vaya a Ajustes > Impresoras para seleccionar una.",
-        "error"
-      );
-      return;
-    }
-
-    showToast(`Preparando ticket #${saleId} para impresión...`, "info");
-
-    try {
-      const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
-      const result = await response.json();
-
-      if (result.success) {
-        //await printTicket(configuredPrinter, result.data);
-        await imprimirTicketDespuesDeGuardar(result);
-
-      } else {
-        showToast(
-          `Error al obtener datos del ticket: ${result.message}`,
-          "error"
-        );
-      }
-    } catch (error) {
-      console.error("Error al disparar la impresión:", error);
-      showToast("Error de conexión al intentar imprimir el ticket.", "error");
-    }
-  }
-
-  // --- PEGA ESTE BLOQUE COMPLETO EN TU ARCHIVO pos.js ---
-
-  /**
-   * Envía los datos del ticket al servicio local de C# para su impresión.
-   * Si falla, intenta usar QZ Tray como método de respaldo.
-   * @param {object} result El objeto que contiene los datos del ticket en result.data.
-   */
-  async function imprimirTicketDespuesDeGuardar(result) {
-    const ticketData = result.data;
-
-    // opcional: forzar impresora desde la UI/config
-    if (configuredPrinter) {
-      ticketData.printerName = configuredPrinter;
-    }
-
-    try {
-      const response = await fetch('http://127.0.0.1:9898/imprimir', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(ticketData)
-      });
-
-      if (response.ok) {
-        showToast("Ticket enviado a la impresora local.", "success");
-      } else {
-        const errorText = await response.text();
-        showToast(`Error del servicio local: ${errorText}`, "error");
-        await fallbackToQzTray(ticketData);
-      }
-    } catch (err) {
-      console.warn("Servicio local no disponible:", err);
-      showToast("Servicio local no encontrado. Usando QZ Tray.", "warning");
-      await fallbackToQzTray(ticketData);
-    }
-  }
-
-
-  /**
-   * Función de respaldo que utiliza la lógica original de QZ Tray.
-   * @param {object} ticketData Los datos del ticket a imprimir.
-   */
-  async function fallbackToQzTray(ticketData) {
-    if (typeof qz === "undefined" || !qz.websocket.isActive()) {
-      showToast("Respaldo QZ Tray no conectado.", "warning");
-      return;
-    }
-    if (!configuredPrinter) {
-      showToast("Impresora para QZ Tray no configurada.", "error");
-      return;
-    }
-
-    try {
-      // Aquí va tu función original para imprimir con QZ Tray.
-      await printTicket(configuredPrinter, ticketData);
-      showToast("Ticket enviado al respaldo QZ Tray.", "success");
-    } catch (e) {
-      showToast("No se pudo imprimir el ticket con QZ Tray.", "error");
-    }
-  }
-
 
   async function openPendingSalesModal() {
     pendingSalesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">Cargando...</td></tr>`;
@@ -1271,6 +982,7 @@ function handleQuantityChange(event) {
     renderPendingSales(filteredSales);
   }
 
+
   function renderPendingSales(sales) {
     if (!sales || sales.length === 0) {
       pendingSalesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">No hay ventas guardadas que coincidan con la búsqueda.</td></tr>`;
@@ -1280,34 +992,19 @@ function handleQuantityChange(event) {
     sales.forEach((sale) => {
       const tr = document.createElement("tr");
       tr.className = "hover:bg-gray-800";
-      const formattedDate = new Date(sale.fecha).toLocaleString("es-MX", {
-        dateStyle: "short",
-        timeStyle: "short",
-      });
+      const formattedDate = new Date(sale.fecha).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
       tr.innerHTML = `
                 <td class="py-2 px-4 text-sm font-semibold">#${sale.id}</td>
                 <td class="py-2 px-4 text-sm">${formattedDate}</td>
                 <td class="py-2 px-4 text-sm">${sale.cliente_nombre}</td>
-                <td class="py-2 px-4 text-right text-sm font-mono">$${parseFloat(
-        sale.total
-      ).toFixed(2)}</td>
+                <td class="py-2 px-4 text-right text-sm font-mono">$${formatNumber(sale.total)}</td>
                 <td class="py-2 px-4 text-center">
                     <div class="action-buttons-container">
-                        <button data-id="${sale.id
-        }" class="load-sale-btn" title="Cargar Venta">
-                            <i class="fas fa-folder-open"></i>
-                        </button>
-                        <a href="${BASE_URL}/generateQuote?id=${sale.id
-        }" target="_blank" class="pdf-sale-btn" title="Ver Cotización PDF">
-                            <i class="fas fa-file-pdf"></i>
-                        </a>
-                        <button data-id="${sale.id
-        }" class="delete-sale-btn" title="Eliminar Venta">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
+                        <button data-id="${sale.id}" class="load-sale-btn" title="Cargar Venta"><i class="fas fa-folder-open"></i></button>
+                        <a href="${BASE_URL}/generateQuote?id=${sale.id}" target="_blank" class="pdf-sale-btn" title="Ver Cotización PDF"><i class="fas fa-file-pdf"></i></a>
+                        <button data-id="${sale.id}" class="delete-sale-btn" title="Eliminar Venta"><i class="fas fa-trash-alt"></i></button>
                     </div>
-                </td>
-            `;
+                </td>`; // CAMBIO AQUÍ
       pendingSalesTableBody.appendChild(tr);
     });
   }
@@ -1315,9 +1012,7 @@ function handleQuantityChange(event) {
   async function loadSale(saleId) {
     closePendingSalesModal();
     if (cart.length > 0) {
-      const confirmed = await showConfirm(
-        "Se limpiará el carrito actual para cargar la venta pendiente. ¿Desea continuar?"
-      );
+      const confirmed = await showConfirm("Se limpiará el carrito actual para cargar la venta pendiente. ¿Desea continuar?");
       if (!confirmed) return;
     }
     try {
@@ -1335,30 +1030,14 @@ function handleQuantityChange(event) {
 
   async function loadSaleIntoPOS(saleData) {
     currentSaleId = saleData.header.id;
-
-    await selectClient(
-      {
-        id: saleData.header.id_cliente,
-        nombre: saleData.header.cliente_nombre,
-      },
-      false
-    );
-
-    const clientOption = new Option(
-      selectedClient.nombre,
-      selectedClient.id,
-      true,
-      true
-    );
+    await selectClient({ id: saleData.header.id_cliente, nombre: saleData.header.cliente_nombre }, false);
+    const clientOption = new Option(selectedClient.nombre, selectedClient.id, true, true);
     searchClientSelect.append(clientOption).trigger("change");
-
     if (saleData.header.id_direccion_envio) {
       addressSelect.value = saleData.header.id_direccion_envio;
     }
-
     applyIVA = saleData.header.iva_aplicado == 1;
     toggleIvaCheckbox.checked = applyIVA;
-
     cart = saleData.items.map((item) => ({
       id: item.id_producto,
       nombre: item.nombre,
@@ -1370,17 +1049,13 @@ function handleQuantityChange(event) {
       sku: item.sku || null,
       codigo_barras: item.codigo_barras || null,
     }));
-
     renderCart();
     showToast(`Venta #${currentSaleId} cargada en el POS.`, "info");
   }
 
   async function handleDeletePendingSale(saleId) {
-    const confirmed = await showConfirm(
-      "¿Estás seguro de que quieres eliminar esta venta pendiente? Esta acción es irreversible."
-    );
+    const confirmed = await showConfirm("¿Estás seguro de que quieres eliminar esta venta pendiente? Esta acción es irreversible.");
     if (!confirmed) return;
-
     try {
       const response = await fetch(`${BASE_URL}/deletePendingSale`, {
         method: "POST",
@@ -1388,7 +1063,6 @@ function handleQuantityChange(event) {
         body: JSON.stringify({ id_venta: saleId }),
       });
       const result = await response.json();
-
       if (result.success) {
         showToast(result.message, "success");
         openPendingSalesModal();
@@ -1412,16 +1086,13 @@ function handleQuantityChange(event) {
 
   async function handleAddNewClient(event) {
     event.preventDefault();
-
     const formData = new FormData(addClientForm);
     const clientData = {};
     for (const [key, value] of formData.entries()) {
       clientData[key] = value;
     }
-
     clientData.tiene_credito = clientHasCreditCheckbox.checked ? 1 : 0;
     clientData.limite_credito = parseFloat(clientData.limite_credito) || 0.0;
-
     try {
       const response = await fetch(`${BASE_URL}/createClient`, {
         method: "POST",
@@ -1429,31 +1100,17 @@ function handleQuantityChange(event) {
         body: JSON.stringify(clientData),
       });
       const result = await response.json();
-
       if (result.success) {
         showToast("Cliente añadido exitosamente.", "success");
         hideAddClientModal();
         const newClient = {
           id: result.id,
           text: clientData.nombre,
-          original: {
-            id: result.id,
-            nombre: clientData.nombre,
-            tiene_credito: clientData.tiene_credito,
-            limite_credito: clientData.limite_credito,
-            deuda_actual: 0.0,
-          },
+          original: { id: result.id, nombre: clientData.nombre, tiene_credito: clientData.tiene_credito, limite_credito: clientData.limite_credito, deuda_actual: 0.0 },
         };
-
         const option = new Option(newClient.text, newClient.id, true, true);
         searchClientSelect.append(option).trigger("change");
-
-        searchClientSelect.trigger({
-          type: "select2:select",
-          params: {
-            data: newClient,
-          },
-        });
+        searchClientSelect.trigger({ type: "select2:select", params: { data: newClient } });
       } else {
         showToast(`Error al añadir cliente: ${result.message}`, "error");
       }
@@ -1470,49 +1127,31 @@ function handleQuantityChange(event) {
       modalErrorMessage.classList.add('hidden');
       cashOpeningModal.classList.remove('hidden');
     };
-
-    const hideModal = () => {
-      cashOpeningModal.classList.add('hidden');
-    };
-
+    const hideModal = () => cashOpeningModal.classList.add('hidden');
     const showModalError = (message) => {
       modalErrorMessage.textContent = message;
       modalErrorMessage.classList.remove('hidden');
     }
-
     openCashModalBtn.addEventListener('click', showModal);
     closeCashModalBtn.addEventListener('click', hideModal);
     cancelCashOpeningBtn.addEventListener('click', hideModal);
-
     cashOpeningForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       modalErrorMessage.classList.add('hidden');
-
       const monto = montoInput.value;
       const fecha = fechaInput.value;
-
       if (monto === '' || parseFloat(monto) < 0 || !fecha) {
         showModalError('Por favor, ingrese un monto y fecha válidos.');
         return;
       }
-
-      const data = {
-        monto_inicial: parseFloat(monto),
-        fecha_apertura: fecha
-      };
-
+      const data = { monto_inicial: parseFloat(monto), fecha_apertura: fecha };
       try {
         const response = await fetch(`${BASE_URL}/registrarApertura`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
           body: JSON.stringify(data)
         });
-
         const result = await response.json();
-
         if (response.ok) {
           hideModal();
           showToast(result.message, 'success');
@@ -1525,30 +1164,258 @@ function handleQuantityChange(event) {
     });
   }
 
-  clientHasCreditCheckbox.addEventListener("change", function () {
-    if (this.checked) {
-      creditLimitContainer.classList.remove("hidden");
-    } else {
-      creditLimitContainer.classList.add("hidden");
+  // === INICIO: LÓGICA DE IMPRESIÓN ON-DEMAND ===
+
+  let printMethod = 'service'; // Valor por defecto
+  let qzScriptsLoaded = false;
+
+  // Referencias a elementos del DOM para el switch de impresión
+  const pmServiceBtn = document.getElementById('pm-service');
+  const pmQzBtn = document.getElementById('pm-qztray');
+  const qzConnectBtn = document.getElementById('btn-qz-connect');
+  const qzStatusWrap = document.getElementById('qz-status');
+  const qzConfirmModal = document.getElementById('qz-confirm');
+  const qzAcceptBtn = document.getElementById('qz-accept');
+  const qzCancelBtn = document.getElementById('qz-cancel');
+
+  /**
+   * Actualiza la UI del switch para reflejar el método de impresión activo.
+   */
+  function markMethodUI() {
+    if (!pmServiceBtn || !pmQzBtn) return;
+    pmServiceBtn.classList.toggle('bg-slate-700', printMethod === 'service');
+    pmQzBtn.classList.toggle('bg-slate-700', printMethod === 'qztray');
+    qzConnectBtn.classList.toggle('hidden', printMethod !== 'qztray' || (typeof qz !== 'undefined' && qz.websocket.isActive()));
+    qzStatusWrap.classList.toggle('hidden', printMethod !== 'qztray');
+  }
+
+  /**
+   * Actualiza el texto de estado de QZ Tray (Conectado/Desconectado).
+   * @param {boolean} connected - `true` si QZ está conectado.
+   */
+  function setQzStatus(connected) {
+    if (!qzStatusWrap) return;
+    const statusSpan = qzStatusWrap.querySelector('span');
+    if (statusSpan) {
+      statusSpan.textContent = connected ? 'Conectado' : 'Desconectado';
+      statusSpan.className = connected ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold';
+    }
+    markMethodUI(); // Re-evaluar si el botón de conectar debe mostrarse
+  }
+
+  /**
+   * Carga las preferencias de impresión del usuario desde el backend.
+   */
+  async function fetchPrintPrefs() {
+    try {
+      const response = await fetch(`${BASE_URL}/getPrintPrefs`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        printMethod = result.data.print_method || 'service';
+        configuredPrinter = result.data.impresora_tickets;
+      }
+    } catch (e) {
+      console.error("No se pudieron cargar las preferencias de impresión.", e);
+      printMethod = 'service'; // Fallback seguro
+    }
+    markMethodUI();
+  }
+
+  /**
+   * Guarda el método de impresión seleccionado en el backend.
+   * @param {string} method - 'service' o 'qztray'.
+   */
+  async function savePrintPrefs(method) {
+    try {
+      await fetch(`${BASE_URL}/updatePrintPrefs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ print_method: method })
+      });
+    } catch (e) {
+      console.error("No se pudieron guardar las preferencias de impresión.", e);
+      showToast("Error al guardar preferencia.", "error");
+    }
+  }
+
+  /**
+   * Carga dinámicamente los scripts necesarios para QZ Tray.
+   */
+  async function loadQZScripts() {
+    if (qzScriptsLoaded) return Promise.resolve();
+
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+
+    try {
+      await loadScript("https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js");
+      await loadScript("https://cdn.jsdelivr.net/npm/qz-tray@2.2/qz-tray.min.js");
+      // CAMBIO: Asegúrate que la ruta a tu handler es correcta.
+      await loadScript("js/qz-tray-handler.js");
+      qzScriptsLoaded = true;
+    } catch (error) {
+      console.error("Falló la carga de scripts de QZ Tray:", error);
+      throw new Error("Falló la carga de scripts de QZ Tray.");
+    }
+  }
+
+  /**
+   * Función principal que se llama para imprimir un ticket.
+   * @param {number} saleId - El ID de la venta a imprimir.
+   */
+  async function triggerPrint(saleId) {
+    try {
+      // CAMBIO: Corregido el nombre de la acción de 'getTicketData' a 'getTicketDetails'.
+      const response = await fetch(`${BASE_URL}/getTicketDetails?id=${encodeURIComponent(saleId)}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        showToast(`Error al obtener ticket: ${result.message}`, "error");
+        return;
+      }
+
+      await imprimirTicketDespuesDeGuardar(result);
+
+    } catch (e) {
+      console.error("Error de red al obtener ticket:", e);
+      showToast("Error de red al obtener ticket.", "error");
+    }
+  };
+
+  /**
+   * Decide qué método de impresión usar (servicio local o QZ Tray).
+   * @param {object} result - El objeto de respuesta del backend con los datos del ticket.
+   */
+  async function imprimirTicketDespuesDeGuardar(result) {
+    const ticketData = result.data || {};
+    if (configuredPrinter) {
+      ticketData.printerName = configuredPrinter;
+    }
+
+    if (printMethod === 'service') {
+      showToast("Enviando a servicio de impresión local...", "info");
+      try {
+        const response = await fetch('http://127.0.0.1:9898/imprimir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ticketData)
+        });
+        if (response.ok) {
+          showToast("Ticket enviado al servicio local.", "success");
+        } else {
+          const errorText = await response.text();
+          showToast(`Error del servicio local: ${errorText}`, "error");
+        }
+      } catch (err) {
+        console.warn("Servicio local no disponible:", err);
+        showToast("Servicio local no encontrado. Verifique que esté en ejecución.", "error");
+      }
+      return;
+    }
+
+    if (printMethod === 'qztray') {
+      showToast("Enviando a QZ Tray...", "info");
+      try {
+        await loadQZScripts();
+      } catch (e) {
+        showToast("No se pudieron cargar los componentes de QZ Tray.", "error");
+        return;
+      }
+
+      if (typeof qz === "undefined" || !qz.websocket.isActive()) {
+        showToast("QZ Tray no está conectado. Conéctelo para poder imprimir.", "warning");
+        return;
+      }
+      if (!configuredPrinter) {
+        showToast("No hay una impresora configurada para QZ Tray. Vaya a Ajustes.", "error");
+        return;
+      }
+
+      try {
+        // Asumimos que qz-tray-handler.js define una función global `printTicket`
+        await printTicket(configuredPrinter, ticketData);
+        showToast("Ticket enviado a QZ Tray.", "success");
+      } catch (e) {
+        console.error("Error al imprimir con QZ Tray:", e);
+        showToast("No se pudo imprimir con QZ Tray.", "error");
+      }
+    }
+  };
+
+
+  // --- Eventos para el Switch de Impresión ---
+
+  pmServiceBtn.addEventListener('click', async () => {
+    printMethod = 'service';
+    markMethodUI();
+    await savePrintPrefs('service');
+    showToast("Impresión por servicio local activada.", "success");
+  });
+
+  pmQzBtn.addEventListener('click', () => {
+    if (printMethod === 'qztray') return; // Ya está activo
+    qzConfirmModal.classList.remove('hidden');
+    qzConfirmModal.classList.add('flex');
+  });
+
+  qzCancelBtn.addEventListener('click', () => {
+    qzConfirmModal.classList.add('hidden');
+    qzConfirmModal.classList.remove('flex');
+  });
+
+  qzAcceptBtn.addEventListener('click', async () => {
+    qzConfirmModal.classList.add('hidden');
+    qzConfirmModal.classList.remove('flex');
+    showToast("Activando QZ Tray...", "info");
+    try {
+      await loadQZScripts();
+      // Asumimos que qz-tray-handler.js define `connectQz`
+      if (typeof connectQz === 'function') {
+        // Pasamos la función de callback para actualizar el estado
+        await connectQz(setQzStatus);
+      }
+      printMethod = 'qztray';
+      markMethodUI();
+      await savePrintPrefs('qztray');
+      showToast("Modo de impresión QZ Tray activado.", "success");
+    } catch (e) {
+      showToast("No se pudo cargar o conectar con QZ Tray.", "error");
     }
   });
 
+  qzConnectBtn.addEventListener('click', async () => {
+    showToast("Intentando conectar con QZ Tray...", "info");
+    try {
+      await loadQZScripts();
+      if (typeof connectQz === 'function') {
+        await connectQz(setQzStatus);
+      }
+    } catch (e) {
+      showToast("Fallo al intentar conectar con QZ.", "error");
+    }
+  });
+
+
+  // === FIN: LÓGICA DE IMPRESIÓN ON-DEMAND ===
+
+
+  // --- Inicialización y Asignación de Eventos Generales ---
+
+  // Eventos de la UI del carrito y modales
   cartItemsContainer.addEventListener("click", function (event) {
     const quantityButton = event.target.closest(".quantity-change");
     const removeButton = event.target.closest(".remove-item-btn");
-
-    if (quantityButton) {
-      handleQuantityChange(event);
-    } else if (removeButton) {
-      removeProductFromCart(removeButton.dataset.id);
-    }
-  
-  // Listeners para edición directa de cantidad
+    if (quantityButton) handleQuantityChange(event);
+    else if (removeButton) removeProductFromCart(removeButton.dataset.id);
+  });
   cartItemsContainer.addEventListener("input", handleQuantityInput);
   cartItemsContainer.addEventListener("change", handleQuantityCommit);
   cartItemsContainer.addEventListener("blur", handleQuantityCommit, true);
-});
-
   cancelSaleBtn.addEventListener("click", cancelSale);
   chargeBtn.addEventListener("click", showChargeModal);
   saveSaleBtn.addEventListener("click", handleSaveSale);
@@ -1556,16 +1423,11 @@ function handleQuantityChange(event) {
   modalConfirmBtn.addEventListener("click", processSale);
 
   if (priceTypeSelector) {
-
     priceTypeSelector.addEventListener("click", (e) => {
       const targetButton = e.target.closest(".price-type-btn");
       if (!targetButton || targetButton.classList.contains("active-price-type")) return;
-
-      priceTypeSelector.querySelectorAll(".price-type-btn").forEach((btn) => {
-        btn.classList.remove("active-price-type");
-      });
+      priceTypeSelector.querySelectorAll(".price-type-btn").forEach((btn) => btn.classList.remove("active-price-type"));
       targetButton.classList.add("active-price-type");
-
       const newLevel = parseInt(targetButton.dataset.level || "1", 10);
       if (String(priceTypeValueInput.value) !== String(newLevel)) {
         priceTypeValueInput.value = String(newLevel);
@@ -1580,24 +1442,19 @@ function handleQuantityChange(event) {
 
   openPendingSalesBtn.addEventListener("click", openPendingSalesModal);
   closePendingSalesModalBtn.addEventListener("click", closePendingSalesModal);
-
   searchCartInput.addEventListener("input", renderCart);
   searchPendingSaleInput.addEventListener("input", filterAndRenderPendingSales);
-
   addPaymentMethodBtn.addEventListener("click", () => addPaymentMethodInput());
 
-
-  // Cambio de nivel de precio por item
   cartItemsContainer.addEventListener("change", (e) => {
     const sel = e.target.closest(".price-level-select");
     if (!sel) return;
     const id = sel.dataset.id;
     const item = cart.find((i) => String(i.id) === String(id));
-    const val = sel.value; // "Especial" | "P1".."P5"
+    const val = sel.value;
     if (!item) return;
     if (val === "Especial") {
       item.tipo_precio_aplicado = "Especial";
-      // No modificamos precio_final (se puede editar manualmente)
     } else {
       const lvl = parseInt(val.slice(1), 10);
       item.tipo_precio_aplicado = `P${lvl}`;
@@ -1605,6 +1462,7 @@ function handleQuantityChange(event) {
     }
     renderCart();
   });
+
   toggleIvaCheckbox.addEventListener("change", () => {
     applyIVA = toggleIvaCheckbox.checked;
     updateTotals();
@@ -1613,82 +1471,63 @@ function handleQuantityChange(event) {
   pendingSalesTableBody.addEventListener("click", function (event) {
     const loadButton = event.target.closest(".load-sale-btn");
     const deleteButton = event.target.closest(".delete-sale-btn");
-
-    if (loadButton) {
-      loadSale(loadButton.dataset.id);
-    } else if (deleteButton) {
-      handleDeletePendingSale(deleteButton.dataset.id);
-    }
+    if (loadButton) loadSale(loadButton.dataset.id);
+    else if (deleteButton) handleDeletePendingSale(deleteButton.dataset.id);
   });
 
   addNewClientBtn.addEventListener("click", showAddClientModal);
   closeAddClientModalBtn.addEventListener("click", hideAddClientModal);
   cancelAddClientBtn.addEventListener("click", hideAddClientModal);
   addClientForm.addEventListener("submit", handleAddNewClient);
-
   openStockCheckerBtn.addEventListener("click", openStockCheckerModal);
   closeStockCheckerModalBtn.addEventListener("click", closeStockCheckerModal);
-
   stockCheckerSearchInput.addEventListener("keyup", () => {
     clearTimeout(stockSearchTimer);
     stockSearchTimer = setTimeout(searchStockAcrossBranches, 300);
   });
+  clientHasCreditCheckbox.addEventListener("change", function () {
+    creditLimitContainer.classList.toggle("hidden", !this.checked);
+  });
+  searchProductInput.addEventListener("input", filterProducts);
+  searchProductInput.addEventListener("keydown", handleBarcodeScan);
 
+  // Configuración de Select2 para clientes
   searchClientSelect.select2({
     width: "100%",
     placeholder: "Buscar cliente por nombre, RFC o teléfono...",
     minimumInputLength: 2,
     language: {
-      inputTooShort: function () {
-        return "Por favor, introduce 2 o más caracteres para buscar.";
-      },
-      noResults: function () {
-        return "No se encontraron resultados.";
-      },
-      searching: function () {
-        return "Buscando...";
-      },
+      inputTooShort: () => "Por favor, introduce 2 o más caracteres para buscar.",
+      noResults: () => "No se encontraron resultados.",
+      searching: () => "Buscando...",
     },
     ajax: {
       url: `${BASE_URL}/searchClients`,
       dataType: "json",
       delay: 250,
-      data: function (params) {
-        return {
-          term: params.term,
-        };
-      },
-      processResults: function (data) {
-        return {
-          results: data.results.map((client) => ({
-            id: client.id,
-            text: client.text,
-            original: client,
-          })),
-        };
-      },
+      data: (params) => ({ term: params.term }),
+      processResults: (data) => ({
+        results: data.results.map((client) => ({
+          id: client.id,
+          text: client.text,
+          original: client,
+        })),
+      }),
       cache: true,
     },
-    templateSelection: function (data) {
-      return data.text;
-    },
-    templateResult: function (data) {
-      if (data.loading) return data.text;
-      return $(`<div>${data.text}</div>`);
-    },
-  });
-
-  searchClientSelect.on("select2:select", function (e) {
+  }).on("select2:select", (e) => {
     const selectedData = e.params.data;
-    const clientToSelect = selectedData.original || {
-      id: selectedData.id,
-      nombre: selectedData.text,
-    };
+    const clientToSelect = selectedData.original || { id: selectedData.id, nombre: selectedData.text };
     selectClient(clientToSelect);
   });
 
-  fetchProducts();
-  fetchPrinterConfig();
-  toggleSaveButton();
-  setupCashOpeningModal();
+  // --- Carga de datos inicial ---
+  function initializePOS() {
+    fetchPrintPrefs(); // Carga la preferencia de impresión del usuario
+    fetchProducts();
+    toggleSaveButton();
+    setupCashOpeningModal();
+  }
+
+  initializePOS();
 });
