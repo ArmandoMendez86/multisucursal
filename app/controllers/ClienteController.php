@@ -16,6 +16,28 @@ class ClienteController
         $this->productoModel = new Producto();
     }
 
+    // NUEVO MÉTODO PARA DATATABLES
+    public function listClients()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Acceso no autorizado.']);
+            return;
+        }
+        try {
+            // Pasamos los parámetros de DataTables (enviados por POST) al modelo
+            $output = $this->clienteModel->getClientsForDataTable($_POST);
+            echo json_encode($output);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Error del servidor al listar clientes.',
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
+
     public function getAll()
     {
         header('Content-Type: application/json');
@@ -206,32 +228,21 @@ class ClienteController
     public function search()
     {
         header('Content-Type: application/json');
-        // Select2 envía el término de búsqueda en el parámetro 'term'
         $term = $_GET['term'] ?? '';
-
         if (!isset($_SESSION['user_id'])) {
             http_response_code(403);
-            // Select2 espera 'results' en la respuesta, incluso si hay un error.
             echo json_encode(['results' => [], 'message' => 'Acceso no autorizado.']);
             return;
         }
-        
-        // Si el término de búsqueda está vacío, devuelve el cliente por defecto
         if (empty($term)) {
-            // Select2 espera 'results' con un array de objetos {id, text}
             echo json_encode(['results' => [['id' => 1, 'text' => 'Público en General']]]);
             return;
         }
-
         $term = htmlspecialchars(strip_tags($term));
         $clientes = $this->clienteModel->search($term);
-
-        // Formatear los resultados para Select2
         $results = array_map(function($cliente) {
             return ['id' => $cliente['id'], 'text' => $cliente['nombre']];
         }, $clientes);
-
-        // Envía la respuesta con la clave 'results'
         echo json_encode(['results' => $results]);
     }
 
@@ -260,21 +271,17 @@ class ClienteController
             echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
             return;
         }
-
         $data = json_decode(file_get_contents('php://input'), true);
-
         $idCliente = $data['id_cliente'] ?? null;
         $idProducto = $data['id_producto'] ?? null;
         $precioEspecial = $data['precio_especial'] ?? null;
-
         if (empty($idCliente) || empty($idProducto) || !isset($precioEspecial)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Datos incompletos para guardar precio especial.']);
             return;
         }
-
         try {
-            $this->clienteModel->setSpecialPrice($idCliente, $idProducto, $precioEspecial); // Utiliza el método existente
+            $this->clienteModel->setSpecialPrice($idCliente, $idProducto, $precioEspecial);
             echo json_encode(['success' => true, 'message' => 'Precio especial guardado exitosamente.']);
         } catch (Exception $e) {
             http_response_code(500);

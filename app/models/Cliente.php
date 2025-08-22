@@ -17,6 +17,88 @@ class Cliente
         $this->conn = $database->getConnection();
     }
 
+    public function getClientsForDataTable($request)
+    {
+        $baseQuery = " FROM " . $this->table_name;
+        $columns = ['nombre', 'telefono', 'email', 'deuda_actual'];
+
+        $searchQuery = "";
+        if (!empty($request['search']['value'])) {
+            $searchValue = $request['search']['value'];
+            $searchQuery = " WHERE (nombre LIKE :search_value OR telefono LIKE :search_value OR email LIKE :search_value)";
+        }
+
+        $stmtTotal = $this->conn->prepare("SELECT COUNT(id) as total " . $baseQuery);
+        $stmtTotal->execute();
+        $recordsTotal = $stmtTotal->fetchColumn();
+
+        $stmtFiltered = $this->conn->prepare("SELECT COUNT(id) as total " . $baseQuery . $searchQuery);
+        if (!empty($searchQuery)) {
+            $stmtFiltered->bindValue(':search_value', '%' . $searchValue . '%', PDO::PARAM_STR);
+        }
+        $stmtFiltered->execute();
+        $recordsFiltered = $stmtFiltered->fetchColumn();
+
+        $orderQuery = "";
+        if (isset($request['order']) && count($request['order'])) {
+            $orderColumnIndex = $request['order'][0]['column'];
+            $orderColumnName = $columns[$orderColumnIndex];
+            $orderDir = $request['order'][0]['dir'];
+            $orderQuery = " ORDER BY " . $orderColumnName . " " . $orderDir;
+        } else {
+            $orderQuery = " ORDER BY nombre ASC";
+        }
+        
+        $limitQuery = "";
+        if (isset($request['length']) && $request['length'] != -1) {
+            $limitQuery = " LIMIT :limit OFFSET :offset";
+        }
+
+        $query = "SELECT id, nombre, telefono, email, deuda_actual " . $baseQuery . $searchQuery . $orderQuery . $limitQuery;
+        $stmtData = $this->conn->prepare($query);
+
+        if (!empty($searchQuery)) {
+            $stmtData->bindValue(':search_value', '%' . $searchValue . '%', PDO::PARAM_STR);
+        }
+        if (!empty($limitQuery)) {
+            $stmtData->bindValue(':limit', (int)$request['length'], PDO::PARAM_INT);
+            $stmtData->bindValue(':offset', (int)$request['start'], PDO::PARAM_INT);
+        }
+        
+        $stmtData->execute();
+        $clients = $stmtData->fetchAll(PDO::FETCH_ASSOC);
+        
+        $data = [];
+        foreach ($clients as $client) {
+            $deuda = (float)($client['deuda_actual'] ?? 0);
+            $hasDebt = $deuda > 0;
+
+            $acciones = '';
+            if ($hasDebt) {
+                $acciones .= '<button class="payment-btn text-green-400 hover:text-green-300 mr-3" title="Registrar Abono"><i class="fas fa-dollar-sign"></i></button>';
+            }
+            $acciones .= '<button class="edit-btn text-blue-400 hover:text-blue-300 mr-3" title="Editar"><i class="fas fa-pencil-alt"></i></button>';
+            $acciones .= '<button class="delete-btn text-red-500 hover:text-red-400" title="Eliminar"><i class="fas fa-trash-alt"></i></button>';
+
+            $data[] = [
+                "id" => $client['id'],
+                "nombre" => htmlspecialchars($client['nombre']),
+                "telefono" => htmlspecialchars($client['telefono'] ?? 'N/A'),
+                "email" => htmlspecialchars($client['email'] ?? 'N/A'),
+                // --- MODIFICACIÓN: Enviar el número en crudo ---
+                "deuda_actual" => $deuda,
+                "acciones" => $acciones
+            ];
+        }
+
+        return [
+            "draw" => intval($request['draw']),
+            "recordsTotal" => intval($recordsTotal),
+            "recordsFiltered" => intval($recordsFiltered),
+            "data" => $data
+        ];
+    }
+
     public function getAll()
     {
         $query = "SELECT id, nombre, telefono, email, deuda_actual FROM " . $this->table_name . " ORDER BY nombre ASC";
@@ -25,31 +107,20 @@ class Cliente
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Gets a client and ALL their addresses and special prices.
-     */
     public function getById($id)
     {
-        // Get client data
         $query = "SELECT * FROM " . $this->table_name . " WHERE id = :id";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id', $id);
         $stmt->execute();
         $cliente = $stmt->fetch(PDO::FETCH_ASSOC);
-
         if ($cliente) {
-            // Get all addresses
             $cliente['direcciones'] = $this->getDirecciones($id);
-            // Get special prices
             $cliente['precios_especiales'] = $this->getPreciosEspeciales($id);
         }
-
         return $cliente;
     }
 
-    /**
-     * Creates a client and saves their multiple addresses.
-     */
     public function create($data)
     {
         $this->conn->beginTransaction();
@@ -64,17 +135,12 @@ class Cliente
             $stmt_cliente->bindParam(':limite_credito', $data['limite_credito']);
             $stmt_cliente->execute();
             $idCliente = $this->conn->lastInsertId();
-
-            // Save addresses
             if (isset($data['direcciones']) && is_array($data['direcciones'])) {
                 $this->guardarDirecciones($idCliente, $data['direcciones']);
             }
-
-            // Save special prices
             if (isset($data['precios']) && is_array($data['precios'])) {
                 $this->guardarPreciosEspeciales($idCliente, $data['precios']);
             }
-
             $this->conn->commit();
             return $idCliente;
         } catch (Exception $e) {
@@ -83,9 +149,6 @@ class Cliente
         }
     }
 
-    /**
-     * Updates a client and synchronizes their multiple addresses.
-     */
     public function update($id, $data)
     {
         $this->conn->beginTransaction();
@@ -100,17 +163,12 @@ class Cliente
             $stmt_cliente->bindParam(':tiene_credito', $data['tiene_credito'], PDO::PARAM_BOOL);
             $stmt_cliente->bindParam(':limite_credito', $data['limite_credito']);
             $stmt_cliente->execute();
-
-            // Synchronize addresses
             if (isset($data['direcciones']) && is_array($data['direcciones'])) {
                 $this->guardarDirecciones($id, $data['direcciones']);
             }
-
-            // Synchronize special prices
             if (isset($data['precios']) && is_array($data['precios'])) {
                 $this->guardarPreciosEspeciales($id, $data['precios']);
             }
-
             $this->conn->commit();
             return true;
         } catch (Exception $e) {
@@ -118,9 +176,7 @@ class Cliente
             throw $e;
         }
     }
-    /**
-     * Deletes a client. The DB handles cascading deletion of addresses.
-     */
+
     public function delete($id)
     {
         $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
@@ -129,18 +185,9 @@ class Cliente
         return $stmt->execute();
     }
 
-    /**
-     * Searches clients by a term (name, rfc, phone).
-     */
     public function search($term)
     {
-        $query = "SELECT id, nombre, rfc, telefono 
-                  FROM " . $this->table_name . " 
-                  WHERE nombre LIKE :term 
-                  OR rfc LIKE :term 
-                  OR telefono LIKE :term
-                  LIMIT 10";
-
+        $query = "SELECT id, nombre, rfc, telefono FROM " . $this->table_name . " WHERE nombre LIKE :term OR rfc LIKE :term OR telefono LIKE :term LIMIT 10";
         $stmt = $this->conn->prepare($query);
         $searchTerm = "%" . $term . "%";
         $stmt->bindParam(':term', $searchTerm);
@@ -148,18 +195,8 @@ class Cliente
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Registers a payment for a client's debt.
-     * @param int $idCliente
-     * @param float $monto
-     * @param string $metodoPago
-     * @param int $idUsuario
-     * @return bool
-     * @throws Exception
-     */
     public function registrarAbono($idCliente, $monto, $metodoPago, $idUsuario)
     {
-        // First, check the current debt to ensure the payment is not greater.
         $cliente = $this->getById($idCliente);
         if (!$cliente) {
             throw new Exception("Cliente no encontrado.");
@@ -167,21 +204,16 @@ class Cliente
         if ($monto > $cliente['deuda_actual']) {
             throw new Exception("El monto del abono no puede ser mayor a la deuda actual de $" . $cliente['deuda_actual']);
         }
-
         $this->conn->beginTransaction();
         try {
-            // 1. Update client's debt
             $query_update = "UPDATE " . $this->table_name . " SET deuda_actual = deuda_actual - :monto WHERE id = :id_cliente";
             $stmt_update = $this->conn->prepare($query_update);
             $stmt_update->bindParam(':monto', $monto);
             $stmt_update->bindParam(':id_cliente', $idCliente);
             $stmt_update->execute();
-
             if ($stmt_update->rowCount() === 0) {
                 throw new Exception("No se pudo actualizar la deuda del cliente.");
             }
-
-            // 2. Insert payment record
             $query_insert = "INSERT INTO " . $this->payments_table . " (id_cliente, id_usuario, monto, metodo_pago) VALUES (:id_cliente, :id_usuario, :monto, :metodo_pago)";
             $stmt_insert = $this->conn->prepare($query_insert);
             $stmt_insert->bindParam(':id_cliente', $idCliente);
@@ -189,45 +221,31 @@ class Cliente
             $stmt_insert->bindParam(':monto', $monto);
             $stmt_insert->bindParam(':metodo_pago', $metodoPago);
             $stmt_insert->execute();
-
             $this->conn->commit();
             return true;
         } catch (Exception $e) {
             $this->conn->rollBack();
-            throw $e; // Re-throw the exception to be caught by the controller
+            throw $e;
         }
     }
 
-
-    /**
-     * Gets all special prices for a client.
-     */
     private function getPreciosEspeciales($id_cliente)
     {
         $query = "SELECT id_producto, precio_especial FROM " . $this->special_prices_table . " WHERE id_cliente = :id_cliente";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id_cliente', $id_cliente);
         $stmt->execute();
-        // Returns an associative array [id_producto => precio_especial]
         return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
     }
 
-    /**
-     * Saves (inserts or updates) special prices for a client.
-     */
     private function guardarPreciosEspeciales($id_cliente, $precios)
     {
-        // First, delete all previous prices for this client to avoid conflicts.
         $stmt_delete = $this->conn->prepare("DELETE FROM " . $this->special_prices_table . " WHERE id_cliente = :id_cliente");
         $stmt_delete->bindParam(':id_cliente', $id_cliente);
         $stmt_delete->execute();
-
-        // Prepare the query to insert new prices.
         $query = "INSERT INTO " . $this->special_prices_table . " (id_cliente, id_producto, precio_especial) VALUES (:id_cliente, :id_producto, :precio_especial)";
         $stmt_insert = $this->conn->prepare($query);
-
         foreach ($precios as $id_producto => $precio) {
-            // Only insert if the price is a valid positive number.
             $precio_limpio = filter_var($precio, FILTER_VALIDATE_FLOAT);
             if ($precio_limpio !== false && $precio_limpio > 0) {
                 $stmt_insert->bindParam(':id_cliente', $id_cliente);
@@ -238,9 +256,6 @@ class Cliente
         }
     }
 
-    /**
-     * Auxiliary method: Gets all addresses for a client.
-     */
     private function getDirecciones($id_cliente)
     {
         $query = "SELECT * FROM " . $this->address_table . " WHERE id_cliente = :id_cliente";
@@ -250,20 +265,13 @@ class Cliente
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * Auxiliary method: Synchronizes client addresses (deletes old ones and inserts new ones).
-     */
     private function guardarDirecciones($id_cliente, $direcciones)
     {
-        // Delete existing addresses to synchronize
         $stmt_delete = $this->conn->prepare("DELETE FROM " . $this->address_table . " WHERE id_cliente = :id_cliente");
         $stmt_delete->bindParam(':id_cliente', $id_cliente);
         $stmt_delete->execute();
-
-        // Insert new addresses
         $query = "INSERT INTO " . $this->address_table . " (id_cliente, direccion, ciudad, estado, codigo_postal, principal) VALUES (:id_cliente, :direccion, :ciudad, :estado, :codigo_postal, :principal)";
         $stmt_insert = $this->conn->prepare($query);
-
         foreach ($direcciones as $dir) {
             if (!empty($dir['direccion'])) {
                 $stmt_insert->bindParam(':id_cliente', $id_cliente);
@@ -277,70 +285,31 @@ class Cliente
         }
     }
 
-    /**
-     * Sets a special price for a specific product for a client.
-     * If a special price already exists, it updates it. Otherwise, it inserts it.
-     * @param int $id_cliente
-     * @param int $id_producto
-     * @param float $precio_especial
-     * @return bool
-     */
     public function setSpecialPrice($id_cliente, $id_producto, $precio_especial)
     {
-        // Use INSERT ... ON DUPLICATE KEY UPDATE to handle insertion/update
-        $query = "INSERT INTO cliente_precios_especiales (id_cliente, id_producto, precio_especial)
-                  VALUES (:id_cliente, :id_producto, :precio_especial)
-                  ON DUPLICATE KEY UPDATE precio_especial = VALUES(precio_especial)";
-        // The UNIQUE key `idx_cliente_producto` in `cliente_precios_especiales`
-        // (id_cliente, id_producto) is crucial for ON DUPLICATE KEY UPDATE to work.
-        // According to your multi.sql, this key already exists.
-
+        $query = "INSERT INTO cliente_precios_especiales (id_cliente, id_producto, precio_especial) VALUES (:id_cliente, :id_producto, :precio_especial) ON DUPLICATE KEY UPDATE precio_especial = VALUES(precio_especial)";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id_cliente', $id_cliente, PDO::PARAM_INT);
         $stmt->bindParam(':id_producto', $id_producto, PDO::PARAM_INT);
-        $stmt->bindParam(':precio_especial', $precio_especial, PDO::PARAM_STR); // Use PARAM_STR for decimal
-
+        $stmt->bindParam(':precio_especial', $precio_especial, PDO::PARAM_STR);
         return $stmt->execute();
     }
 
-    /**
-     * Updates the client's credit limit and current debt after a credit payment.
-     *
-     * @param int $id_cliente The ID of the client.
-     * @param float $amount The amount to deduct from credit limit and add to current debt.
-     * @return bool True on success, false on failure.
-     */
     public function updateClientCredit($id_cliente, $amount)
     {
-        $query = "UPDATE " . $this->table_name . " 
-                  SET limite_credito = limite_credito - :amount, 
-                      deuda_actual = deuda_actual + :amount 
-                  WHERE id = :id_cliente AND tiene_credito = 1 AND (limite_credito - deuda_actual) >= :amount";
-        
+        $query = "UPDATE " . $this->table_name . " SET limite_credito = limite_credito - :amount, deuda_actual = deuda_actual + :amount WHERE id = :id_cliente AND tiene_credito = 1 AND (limite_credito - deuda_actual) >= :amount";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':amount', $amount, PDO::PARAM_STR);
         $stmt->bindParam(':id_cliente', $id_cliente, PDO::PARAM_INT);
-        
         return $stmt->execute() && $stmt->rowCount() > 0;
     }
 
-    /**
-     * Decreases the client's current debt. Used when a credit sale is cancelled.
-     *
-     * @param int $id_cliente The ID of the client.
-     * @param float $amount The amount to decrease from current debt.
-     * @return bool True on success, false on failure.
-     */
     public function decreaseClientCredit($id_cliente, $amount)
     {
-        $query = "UPDATE " . $this->table_name . " 
-                  SET deuda_actual = deuda_actual - :amount 
-                  WHERE id = :id_cliente AND tiene_credito = 1 AND deuda_actual >= :amount";
-        
+        $query = "UPDATE " . $this->table_name . " SET deuda_actual = deuda_actual - :amount WHERE id = :id_cliente AND tiene_credito = 1 AND deuda_actual >= :amount";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':amount', $amount, PDO::PARAM_STR);
         $stmt->bindParam(':id_cliente', $id_cliente, PDO::PARAM_INT);
-        
         return $stmt->execute() && $stmt->rowCount() > 0;
     }
 }

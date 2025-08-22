@@ -92,11 +92,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                                 <th class="py-3 px-6 text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="clients-table-body" class="divide-y divide-gray-700">
-                            <tr>
-                                <td colspan="5" class="text-center py-10 text-gray-500">Cargando clientes...</td>
-                            </tr>
-                        </tbody>
+                        <tbody id="clients-table-body" class="divide-y divide-gray-700 text-xs"></tbody>
                     </table>
                 </div>
             </div>

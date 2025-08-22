@@ -46,7 +46,8 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'searchClients',
         'getProductosParaPreciosEspeciales',
         'saveSpecialClientPrice',
-        'registrarAbono'
+        'registrarAbono',
+        'listClients'
     ])
 ) {
     require_once __DIR__ . '/../app/controllers/ClienteController.php';
@@ -215,6 +216,9 @@ switch ($action) {
         break;
     case 'registrarAbono':
         $controller->registrarAbono();
+        break;
+    case 'listClients':
+        $controller->listClients();
         break;
 
     // --- RUTAS DE VENTA ---
