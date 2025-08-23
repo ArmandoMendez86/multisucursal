@@ -189,7 +189,7 @@ class ClienteController
             echo json_encode(['success' => false, 'message' => 'No se pudo eliminar el cliente.']);
         }
     }
-    
+
     public function registrarAbono()
     {
         header('Content-Type: application/json');
@@ -240,13 +240,13 @@ class ClienteController
         }
         $term = htmlspecialchars(strip_tags($term));
         $clientes = $this->clienteModel->search($term);
-        $results = array_map(function($cliente) {
+        $results = array_map(function ($cliente) {
             return ['id' => $cliente['id'], 'text' => $cliente['nombre']];
         }, $clientes);
         echo json_encode(['results' => $results]);
     }
 
-    public function getProductosParaPreciosEspeciales()
+    /* public function getProductosParaPreciosEspeciales()
     {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
@@ -260,6 +260,31 @@ class ClienteController
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Error al obtener los productos.']);
+        }
+    } */
+
+    public function searchProductsSimple()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
+            return;
+        }
+        $term = $_GET['term'] ?? '';
+        // No buscar si el término es muy corto para evitar sobrecargar el servidor
+        if (strlen($term) < 2) {
+            echo json_encode(['success' => true, 'data' => []]);
+            return;
+        }
+        try {
+            // Se asume que existe un método 'searchSimpleByNameOrSku' en el modelo Producto.
+            // Deberás crear este método. Ver instrucciones.
+            $productos = $this->productoModel->searchSimpleByNameOrSku($term);
+            echo json_encode(['success' => true, 'data' => $productos]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Error al buscar productos.']);
         }
     }
 

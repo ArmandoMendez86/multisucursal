@@ -12,7 +12,6 @@ document.addEventListener("DOMContentLoaded", function () {
    * Carga los datos del dashboard desde la API y actualiza la UI.
    */
   function loadDashboardData() {
-    // La ruta ahora utiliza la variable global BASE_URL para construir el endpoint de la API.
     fetch(`${BASE_URL}/getDashboardData`)
       .then(response => {
         if (!response.ok) {
@@ -26,7 +25,6 @@ document.addEventListener("DOMContentLoaded", function () {
           updateUI(data);
         } else {
           console.error('Error al cargar los datos del dashboard:', result.message);
-          // Opcional: mostrar un mensaje de error en la UI
           document.getElementById('top-productos-container').textContent = `Error: ${result.message}`;
           document.getElementById('top-clientes-container').textContent = `Error: ${result.message}`;
         }
@@ -50,8 +48,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const topProductosContainer = document.getElementById('top-productos-container');
     if (data.topProductos && data.topProductos.length > 0) {
       const productList = data.topProductos.map(p => `
-        <div class="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-          <span class="text-gray-300">${p.nombre}</span>
+        <div class="flex justify-between items-center py-2 border-b border-[var(--color-border)] last:border-b-0">
+          <span class="text-[var(--color-text-secondary)]">${p.nombre}</span>
           <span class="font-semibold text-white bg-blue-500/20 px-2 py-1 rounded-md">${p.total_vendido} vendidos</span>
         </div>
       `).join('');
@@ -64,8 +62,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const topClientesContainer = document.getElementById('top-clientes-container');
     if (data.topClientes && data.topClientes.length > 0) {
       const clientList = data.topClientes.map(c => `
-        <div class="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
-          <span class="text-gray-300">${c.nombre}</span>
+        <div class="flex justify-between items-center py-2 border-b border-[var(--color-border)] last:border-b-0">
+          <span class="text-[var(--color-text-secondary)]">${c.nombre}</span>
           <span class="font-semibold text-green-400">${currencyFormatter.format(c.total_comprado)}</span>
         </div>
       `).join('');

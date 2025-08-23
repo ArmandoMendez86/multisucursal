@@ -13,6 +13,30 @@ class ReporteController
         $this->reporteModel = new Reporte();
     }
 
+    public function getGlobalVentasServerSide()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['rol']) || $_SESSION['rol'] !== 'Super') {
+            http_response_code(403);
+            echo json_encode(['draw' => 0, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [], 'error' => 'No autorizado']);
+            return;
+        }
+
+        $params = $_POST;
+        try {
+            $result = $this->reporteModel->getGlobalVentasServerSide($params);
+            echo json_encode([
+                'draw' => intval($params['draw']),
+                'recordsTotal' => $result['recordsTotal'],
+                'recordsFiltered' => $result['recordsFiltered'],
+                'data' => $result['data']
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['draw' => intval($params['draw']), 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [], 'error' => "Error: " . $e->getMessage()]);
+        }
+    }
+
     public function getVentas()
     {
         header('Content-Type: application/json');
@@ -172,4 +196,5 @@ class ReporteController
             echo json_encode(['draw' => $draw, 'recordsTotal' => 0, 'recordsFiltered' => 0, 'data' => [], 'error' => "Error: " . $e->getMessage()]);
         }
     }
+    
 }

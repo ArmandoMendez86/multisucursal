@@ -55,14 +55,8 @@ document.addEventListener("DOMContentLoaded", function () {
   const montoInput = document.getElementById('monto_inicial');
   const fechaInput = document.getElementById('fecha_apertura');
   const modalErrorMessage = document.getElementById('modal-error-message');
-
-  // CAMBIO: Se elimina la conexión automática a QZ Tray al cargar la página.
-  // La conexión ahora se gestiona a través del nuevo switch de impresión.
-  /*
-  if (typeof connectQz === "function") {
-    connectQz();
-  }
-  */
+  
+  let montoInicialAn; // Variable para la instancia de AutoNumeric
 
   let allProducts = [];
   const PRODUCTS_TO_SHOW = 20;
@@ -91,10 +85,7 @@ document.addEventListener("DOMContentLoaded", function () {
   if (negativeStockToggle) {
     negativeStockToggle.addEventListener('change', (event) => {
       allowNegativeStock = event.target.checked;
-
-      // CAMBIO: Llamamos a la nueva función que solo actualiza la vista.
       updateProductViewability();
-
       const statusText = allowNegativeStock ? 'Venta sin stock ACTIVADA' : 'Venta sin stock DESACTIVADA';
       showToast(statusText, 'info');
     });
@@ -154,7 +145,7 @@ document.addEventListener("DOMContentLoaded", function () {
         allProducts = result.data;
         renderProducts(allProducts);
       } else {
-        productListContainer.innerHTML = `<p class="text-gray-500">Sin resultados.</p>`;
+        productListContainer.innerHTML = `<p class="text-[var(--color-text-secondary)]">Sin resultados.</p>`;
       }
     } catch (e) {
       if (e.name !== 'AbortError') {
@@ -164,24 +155,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // AÑADE ESTA NUEVA FUNCIÓN EN pos.js
-
-  /**
-   * Actualiza la apariencia de los productos visibles en la pantalla
-   * para reflejar si se pueden vender productos sin stock o no.
-   * Es una operación rápida que no recarga productos.
-   */
   function updateProductViewability() {
     const productCards = document.querySelectorAll('.product-card');
-
     productCards.forEach(card => {
       const productId = parseInt(card.dataset.productId, 10);
       const productData = allProducts.find(p => p.id === productId);
-
       if (productData) {
-        // La misma lógica de 'renderProducts' pero aplicada a las tarjetas existentes
         const isOutOfStock = productData.stock <= 0 && !allowNegativeStock;
-
         if (isOutOfStock) {
           card.classList.add('out-of-stock');
         } else {
@@ -208,37 +188,36 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // CAMBIO EN pos.js
   function renderProducts(products) {
     productListContainer.innerHTML = "";
     if (products.length === 0) {
-      productListContainer.innerHTML = `<p class="text-gray-500">No se encontraron productos.</p>`;
+      productListContainer.innerHTML = `<p class="text-[var(--color-text-secondary)]">No se encontraron productos.</p>`;
       return;
     }
     products.forEach((product) => {
       const productCard = document.createElement("div");
       const stock = product.stock || 0;
       const isOutOfStock = stock <= 0 && !allowNegativeStock;
-      productCard.className = `product-card ${isOutOfStock ? 'out-of-stock' : ''}`;
+      productCard.className = `product-card p-3 rounded-lg text-center cursor-pointer transition-all duration-200 ease-in-out shadow-md flex flex-col justify-between h-full ${isOutOfStock ? 'out-of-stock' : ''}`;
       productCard.dataset.productId = product.id;
       productCard.title = String(product.nombre || '');
       productCard.setAttribute('aria-label', productCard.title);
       const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(product.nombre.substring(0, 8))}`;
       const stockClass = isOutOfStock ? 'zero-stock' : '';
       const stockText = isOutOfStock ? 'Agotado' : `Stock: ${stock}`;
+      
       productCard.innerHTML = `
-          <img src="${imageUrl}" alt="${product.nombre}" class="product-card-image">
+          <img src="${imageUrl}" alt="${product.nombre}" class="product-card-image w-[70px] h-[70px] object-cover rounded-md mx-auto mb-2 shadow-sm">
           <div class="flex-1 flex flex-col justify-between">
-            <div class="font-bold text-white text-sm mb-1 truncate">${product.nombre}</div>
-            <div class="text-xs text-gray-400 mb-2 product-card-stock ${stockClass}">${stockText}</div>
-            <div class="font-mono text-green-400 text-xs">$${formatNumber(getPriceForProduct(product))}</div>
-          </div>`; // CAMBIO AQUÍ
+            <div class="product-card-name font-bold text-sm mb-1 truncate">${product.nombre}</div>
+            <div class="product-card-stock text-xs mb-2 ${stockClass}">${stockText}</div>
+            <div class="font-mono text-green-400 text-xs font-bold">$${formatNumber(getPriceForProduct(product))}</div>
+          </div>`;
       productCard.addEventListener("click", () => addProductToCart(product.id));
       productListContainer.appendChild(productCard);
     });
   }
 
-  // CAMBIO EN pos.js
   function renderCart() {
     cartItemsContainer.innerHTML = "";
     const searchTerm = searchCartInput.value.toLowerCase();
@@ -250,11 +229,11 @@ document.addEventListener("DOMContentLoaded", function () {
     );
 
     if (filteredCart.length === 0) {
-      cartItemsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">El carrito está vacío</div>`;
+      cartItemsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">El carrito está vacío</div>`;
     } else {
       filteredCart.forEach((item) => {
         const cartItem = document.createElement("div");
-        cartItem.className = "cart-item";
+        cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
         const imageUrl = `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent(item.nombre.substring(0, 5))}`;
         let priceTypeLabel = "";
         if (item.tipo_precio_aplicado === "Especial") {
@@ -264,13 +243,14 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (String(item.tipo_precio_aplicado || '').startsWith('P')) {
           priceTypeLabel = `<span class="text-xxs text-blue-400">${item.tipo_precio_aplicado}</span> `;
         }
+
         cartItem.innerHTML = `
-            <img src="${imageUrl}" alt="${item.nombre}" class="cart-item-image">
+            <img src="${imageUrl}" alt="${item.nombre}" class="cart-item-image w-10 h-10 object-cover rounded mr-2">
             <div class="flex-1">
-                <p class="text-sm font-semibold text-white truncate">${item.nombre}</p>
-                <p class="text-xs text-gray-400">
+                <p class="text-sm font-semibold text-[var(--color-text-primary)] truncate">${item.nombre}</p>
+                <p class="text-xs text-[var(--color-text-secondary)]">
                     ${priceTypeLabel}
-                    <select class="price-level-select bg-gray-800 border border-gray-700 rounded text-xs mr-2" data-id="${item.id}">
+                    <select class="price-level-select bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded text-xs mr-2" data-id="${item.id}">
                         <option value="Especial" ${item.tipo_precio_aplicado === 'Especial' ? 'selected' : ''}>Especial</option>
                         <option value="P1" ${item.tipo_precio_aplicado === 'P1' ? 'selected' : ''}>P1</option>
                         <option value="P2" ${item.tipo_precio_aplicado === 'P2' ? 'selected' : ''}>P2</option>
@@ -284,16 +264,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 </p>
             </div>
             <div class="flex items-center ml-2">
-                <div class="quantity-controls">
-                    <button data-id="${item.id}" class="quantity-change" data-action="decrease">-</button>
-                    <input type="number" min="1" class="quantity-input w-16 bg-gray-600 text-white rounded text-center text-sm px-1 mx-1 focus:outline-none focus:ring-1 focus:ring-blue-400" data-id="${item.id}" value="${item.quantity}" />
-                    <button data-id="${item.id}" class="quantity-change" data-action="increase">+</button>
+                <div class="quantity-controls flex items-center gap-px rounded-md overflow-hidden">
+                    <button data-id="${item.id}" class="quantity-change p-1 text-sm font-bold">-</button>
+                    <input type="number" min="1" class="quantity-input w-12 text-center text-sm px-1 mx-px focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" data-id="${item.id}" value="${item.quantity}" />
+                    <button data-id="${item.id}" class="quantity-change p-1 text-sm font-bold">+</button>
                 </div>
-                <div class="text-right font-mono text-base ml-2 line-total" data-id="${item.id}">$${formatNumber(item.quantity * item.precio_final)}</div>
+                <div class="text-right font-mono text-base ml-2 line-total w-24" data-id="${item.id}">$${formatNumber(item.quantity * item.precio_final)}</div>
                 <button data-id="${item.id}" class="remove-item-btn text-red-400 hover:text-red-300 p-1 ml-1 rounded-full">
                     <i class="fas fa-trash-alt"></i>
                 </button>
-            </div>`; // CAMBIOS EN ESTE BLOQUE
+            </div>`;
         cartItemsContainer.appendChild(cartItem);
       });
     }
@@ -302,12 +282,9 @@ document.addEventListener("DOMContentLoaded", function () {
     addPriceEditListeners();
   }
 
-  // CAMBIO EN pos.js
-
   async function addProductToCart(productId) {
     const productInfo = allProducts.find((p) => p.id == productId);
 
-    // Esta primera validación es correcta, la mantenemos.
     if (!productInfo) {
       showToast("Producto no encontrado.", "error");
       return;
@@ -319,10 +296,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const cartItem = cart.find((item) => item.id == productId);
 
-    // Lógica para cuando el producto YA ESTÁ en el carrito
     if (cartItem) {
-      // CAMBIO: Permitimos incrementar la cantidad si la venta sin stock está activa,
-      // o si la cantidad es menor que el stock disponible.
       if (allowNegativeStock || (productInfo && cartItem.quantity < productInfo.stock)) {
         cartItem.quantity++;
         renderCart();
@@ -332,21 +306,17 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Lógica para cuando el producto se agrega POR PRIMERA VEZ al carrito
     try {
       const response = await fetch(`${BASE_URL}/getProductForPOS?id_producto=${productId}&id_cliente=${selectedClient.id}`);
       const result = await response.json();
       if (result.success) {
         const product = result.data;
 
-        // CAMBIO: Se añade la condición !allowNegativeStock a la validación de stock
-        // para permitir agregar productos aunque la base de datos reporte 0.
         if ((product.stock || 0) <= 0 && !allowNegativeStock) {
           showToast("Producto sin stock.", "error");
           return;
         }
 
-        // El resto de la lógica para asignar precio se mantiene
         if (product.tipo_precio_aplicado !== "Especial") {
           product.precio_final = getPriceForProduct(product, currentPriceLevel);
           product.tipo_precio_aplicado = `P${currentPriceLevel}`;
@@ -400,9 +370,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // --- El resto de tus funciones (manejo de modales, totales, etc.) ---
-  // --- (No se necesitan cambios en las siguientes funciones) ---
-
   function openStockCheckerModal() {
     stockCheckerModal.classList.remove("hidden");
     stockCheckerSearchInput.focus();
@@ -411,16 +378,16 @@ document.addEventListener("DOMContentLoaded", function () {
   function closeStockCheckerModal() {
     stockCheckerModal.classList.add("hidden");
     stockCheckerSearchInput.value = "";
-    stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">Introduce un término de búsqueda para ver el stock.</div>`;
+    stockCheckerResultsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">Introduce un término de búsqueda para ver el stock.</div>`;
   }
 
   async function searchStockAcrossBranches() {
     const searchTerm = stockCheckerSearchInput.value.trim();
     if (searchTerm.length < 3) {
-      stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">Introduce al menos 3 caracteres para buscar.</div>`;
+      stockCheckerResultsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">Introduce al menos 3 caracteres para buscar.</div>`;
       return;
     }
-    stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">Buscando...</div>`;
+    stockCheckerResultsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">Buscando...</div>`;
     try {
       const response = await fetch(`${BASE_URL}/getStockAcrossBranches?term=${encodeURIComponent(searchTerm)}`);
       const result = await response.json();
@@ -437,23 +404,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderStockResults(products) {
     if (products.length === 0) {
-      stockCheckerResultsContainer.innerHTML = `<div class="text-center text-gray-500 py-10">No se encontraron productos que coincidan con la búsqueda.</div>`;
+      stockCheckerResultsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">No se encontraron productos que coincidan con la búsqueda.</div>`;
       return;
     }
     let html = "";
     products.forEach((product) => {
       html += `
-        <div class="bg-gray-800 p-4 rounded-lg mb-3">
-          <h3 class="text-lg font-bold text-white">${product.producto_nombre}</h3>
-          <p class="text-sm text-gray-400 mb-3">SKU: ${product.sku}</p>
+        <div class="bg-[var(--color-bg-primary)] p-4 rounded-lg mb-3">
+          <h3 class="text-lg font-bold text-[var(--color-text-primary)]">${product.producto_nombre}</h3>
+          <p class="text-sm text-[var(--color-text-secondary)] mb-3">SKU: ${product.sku}</p>
           <ul class="space-y-2">`;
       product.sucursales.forEach((sucursal) => {
         const stockClass = sucursal.stock > 0 ? "text-green-400" : "text-red-400";
         const formattedStock = parseInt(sucursal.stock).toLocaleString('es-MX');
         const stockText = sucursal.stock > 0 ? `${formattedStock} en stock` : "Agotado";
         html += `
-          <li class="flex justify-between items-center text-sm bg-gray-700/50 px-3 py-2 rounded-md">
-            <span><i class="fas fa-store mr-2 text-gray-500"></i>${sucursal.nombre}</span>
+          <li class="flex justify-between items-center text-sm bg-[var(--color-bg-secondary)]/[0.5] px-3 py-2 rounded-md">
+            <span><i class="fas fa-store mr-2 text-[var(--color-text-secondary)]"></i>${sucursal.nombre}</span>
             <span class="font-semibold ${stockClass}">${stockText}</span>
           </li>`;
       });
@@ -462,7 +429,6 @@ document.addEventListener("DOMContentLoaded", function () {
     stockCheckerResultsContainer.innerHTML = html;
   }
 
-
   function updateTotals() {
     const subtotal = cart.reduce((sum, item) => sum + item.quantity * item.precio_final, 0);
     let tax = 0;
@@ -470,7 +436,6 @@ document.addEventListener("DOMContentLoaded", function () {
       tax = subtotal * 0.16;
     }
     const total = subtotal + tax;
-    // CAMBIO: Se corrigió subtotalElem para que muestre el subtotal y se aplicó el formato a los tres.
     subtotalElem.textContent = `$${formatNumber(subtotal)}`;
     taxElem.textContent = `$${formatNumber(tax)}`;
     totalElem.textContent = `$${formatNumber(total)}`;
@@ -487,7 +452,7 @@ document.addEventListener("DOMContentLoaded", function () {
         input.type = "number";
         input.step = "0.01";
         input.value = currentPrice.toFixed(2);
-        input.className = "w-24 bg-gray-600 text-white rounded text-center text-sm px-1 focus:outline-none focus:ring-1 focus:ring-blue-400";
+        input.className = "w-24 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded text-center text-sm px-1 focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]";
         input.dataset.id = productId;
         this.replaceWith(input);
         input.focus();
@@ -701,8 +666,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const paymentMethods = ["Efectivo", "Tarjeta", "Transferencia", "Crédito"];
     const optionsHtml = paymentMethods.map((m) => `<option value="${m}" ${m === method ? "selected" : ""}>${m}</option>`).join("");
     paymentMethodDiv.innerHTML = `
-        <select class="payment-method-select w-1/2 bg-gray-700 text-white rounded-md p-2 border border-gray-600">${optionsHtml}</select>
-        <input type="number" step="0.01" value="${amount.toFixed(2)}" placeholder="Monto" class="payment-amount-input w-1/2 bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]" />
+        <select class="payment-method-select w-1/2 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)]">${optionsHtml}</select>
+        <input type="number" step="0.01" value="${amount.toFixed(2)}" placeholder="Monto" class="payment-amount-input w-1/2 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]" />
         <button class="remove-payment-method-btn text-red-400 hover:text-red-300 p-2"><i class="fas fa-times"></i></button>`;
     paymentMethodsContainer.appendChild(paymentMethodDiv);
     const amountInput = paymentMethodDiv.querySelector(".payment-amount-input");
@@ -818,7 +783,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // CAMBIO EN pos.js
   function showChargeModal() {
     if (cart.length === 0) {
       showToast("El carrito está vacío.", "error");
@@ -827,7 +791,6 @@ document.addEventListener("DOMContentLoaded", function () {
     modalTotalElem.textContent = totalElem.textContent;
     paymentMethodsContainer.innerHTML = "";
     paymentInputs = [];
-    // CAMBIO: Se usa una expresión regular para quitar '$' y ','
     const totalAmount = parseFloat(totalElem.textContent.replace(/[\$,]/g, ""));
     addPaymentMethodInput("Efectivo", totalAmount);
     updatePaymentTotals();
@@ -909,7 +872,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // CAMBIO EN pos.js
   async function handleSaveSale() {
     if (cart.length === 0 || !selectedClient || selectedClient.id === 1) {
       showToast("Debe seleccionar un cliente y tener productos en el carrito para guardar la venta.", "error");
@@ -919,7 +881,6 @@ document.addEventListener("DOMContentLoaded", function () {
       id_cliente: selectedClient.id,
       id_direccion_envio: addressSelect.value || null,
       cart: cart,
-      // CAMBIO: Se usa una expresión regular para quitar '$' y ',' antes de convertir a número.
       total: parseFloat(totalElem.textContent.replace(/[\$,]/g, "")),
       estado: "Pendiente",
       iva_aplicado: applyIVA ? 1 : 0,
@@ -951,7 +912,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function openPendingSalesModal() {
-    pendingSalesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">Cargando...</td></tr>`;
+    pendingSalesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-[var(--color-text-secondary)]">Cargando...</td></tr>`;
     pendingSalesModal.classList.remove("hidden");
     try {
       const response = await fetch(`${BASE_URL}/listPendingSales`);
@@ -982,16 +943,15 @@ document.addEventListener("DOMContentLoaded", function () {
     renderPendingSales(filteredSales);
   }
 
-
   function renderPendingSales(sales) {
     if (!sales || sales.length === 0) {
-      pendingSalesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-gray-500">No hay ventas guardadas que coincidan con la búsqueda.</td></tr>`;
+      pendingSalesTableBody.innerHTML = `<tr><td colspan="5" class="text-center py-10 text-[var(--color-text-secondary)]">No hay ventas guardadas que coincidan con la búsqueda.</td></tr>`;
       return;
     }
     pendingSalesTableBody.innerHTML = "";
     sales.forEach((sale) => {
       const tr = document.createElement("tr");
-      tr.className = "hover:bg-gray-800";
+      tr.className = "hover:bg-[var(--color-bg-primary)]";
       const formattedDate = new Date(sale.fecha).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" });
       tr.innerHTML = `
                 <td class="py-2 px-4 text-sm font-semibold">#${sale.id}</td>
@@ -1004,7 +964,7 @@ document.addEventListener("DOMContentLoaded", function () {
                         <a href="${BASE_URL}/generateQuote?id=${sale.id}" target="_blank" class="pdf-sale-btn" title="Ver Cotización PDF"><i class="fas fa-file-pdf"></i></a>
                         <button data-id="${sale.id}" class="delete-sale-btn" title="Eliminar Venta"><i class="fas fa-trash-alt"></i></button>
                     </div>
-                </td>`; // CAMBIO AQUÍ
+                </td>`;
       pendingSalesTableBody.appendChild(tr);
     });
   }
@@ -1123,9 +1083,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function setupCashOpeningModal() {
     const showModal = () => {
       fechaInput.value = new Date().toISOString().split('T')[0];
-      montoInput.value = '';
+      if (montoInicialAn) {
+        montoInicialAn.clear();
+      }
       modalErrorMessage.classList.add('hidden');
       cashOpeningModal.classList.remove('hidden');
+      montoInput.focus();
     };
     const hideModal = () => cashOpeningModal.classList.add('hidden');
     const showModalError = (message) => {
@@ -1138,8 +1101,10 @@ document.addEventListener("DOMContentLoaded", function () {
     cashOpeningForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       modalErrorMessage.classList.add('hidden');
-      const monto = montoInput.value;
+      
+      const monto = montoInicialAn.getNumericString();
       const fecha = fechaInput.value;
+
       if (monto === '' || parseFloat(monto) < 0 || !fecha) {
         showModalError('Por favor, ingrese un monto y fecha válidos.');
         return;
@@ -1164,12 +1129,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // === INICIO: LÓGICA DE IMPRESIÓN ON-DEMAND ===
-
-  let printMethod = 'service'; // Valor por defecto
+  let printMethod = 'service';
   let qzScriptsLoaded = false;
-
-  // Referencias a elementos del DOM para el switch de impresión
   const pmServiceBtn = document.getElementById('pm-service');
   const pmQzBtn = document.getElementById('pm-qztray');
   const qzConnectBtn = document.getElementById('btn-qz-connect');
@@ -1178,21 +1139,16 @@ document.addEventListener("DOMContentLoaded", function () {
   const qzAcceptBtn = document.getElementById('qz-accept');
   const qzCancelBtn = document.getElementById('qz-cancel');
 
-  /**
-   * Actualiza la UI del switch para reflejar el método de impresión activo.
-   */
   function markMethodUI() {
     if (!pmServiceBtn || !pmQzBtn) return;
-    pmServiceBtn.classList.toggle('bg-slate-700', printMethod === 'service');
-    pmQzBtn.classList.toggle('bg-slate-700', printMethod === 'qztray');
+    pmServiceBtn.classList.toggle('bg-[var(--color-accent)]', printMethod === 'service');
+    pmServiceBtn.classList.toggle('text-white', printMethod === 'service');
+    pmQzBtn.classList.toggle('bg-[var(--color-accent)]', printMethod === 'qztray');
+    pmQzBtn.classList.toggle('text-white', printMethod === 'qztray');
     qzConnectBtn.classList.toggle('hidden', printMethod !== 'qztray' || (typeof qz !== 'undefined' && qz.websocket.isActive()));
     qzStatusWrap.classList.toggle('hidden', printMethod !== 'qztray');
   }
 
-  /**
-   * Actualiza el texto de estado de QZ Tray (Conectado/Desconectado).
-   * @param {boolean} connected - `true` si QZ está conectado.
-   */
   function setQzStatus(connected) {
     if (!qzStatusWrap) return;
     const statusSpan = qzStatusWrap.querySelector('span');
@@ -1200,12 +1156,9 @@ document.addEventListener("DOMContentLoaded", function () {
       statusSpan.textContent = connected ? 'Conectado' : 'Desconectado';
       statusSpan.className = connected ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold';
     }
-    markMethodUI(); // Re-evaluar si el botón de conectar debe mostrarse
+    markMethodUI();
   }
 
-  /**
-   * Carga las preferencias de impresión del usuario desde el backend.
-   */
   async function fetchPrintPrefs() {
     try {
       const response = await fetch(`${BASE_URL}/getPrintPrefs`);
@@ -1216,15 +1169,11 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } catch (e) {
       console.error("No se pudieron cargar las preferencias de impresión.", e);
-      printMethod = 'service'; // Fallback seguro
+      printMethod = 'service';
     }
     markMethodUI();
   }
 
-  /**
-   * Guarda el método de impresión seleccionado en el backend.
-   * @param {string} method - 'service' o 'qztray'.
-   */
   async function savePrintPrefs(method) {
     try {
       await fetch(`${BASE_URL}/updatePrintPrefs`, {
@@ -1238,12 +1187,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /**
-   * Carga dinámicamente los scripts necesarios para QZ Tray.
-   */
   async function loadQZScripts() {
     if (qzScriptsLoaded) return Promise.resolve();
-
     const loadScript = (src) => new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = src;
@@ -1251,11 +1196,9 @@ document.addEventListener("DOMContentLoaded", function () {
       script.onerror = reject;
       document.head.appendChild(script);
     });
-
     try {
       await loadScript("https://cdn.jsdelivr.net/npm/js-sha256@0.9.0/src/sha256.min.js");
       await loadScript("https://cdn.jsdelivr.net/npm/qz-tray@2.2/qz-tray.min.js");
-      // CAMBIO: Asegúrate que la ruta a tu handler es correcta.
       await loadScript("js/qz-tray-handler.js");
       qzScriptsLoaded = true;
     } catch (error) {
@@ -1264,39 +1207,26 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /**
-   * Función principal que se llama para imprimir un ticket.
-   * @param {number} saleId - El ID de la venta a imprimir.
-   */
   async function triggerPrint(saleId) {
     try {
-      // CAMBIO: Corregido el nombre de la acción de 'getTicketData' a 'getTicketDetails'.
       const response = await fetch(`${BASE_URL}/getTicketDetails?id=${encodeURIComponent(saleId)}`);
       const result = await response.json();
-
       if (!result.success) {
         showToast(`Error al obtener ticket: ${result.message}`, "error");
         return;
       }
-
       await imprimirTicketDespuesDeGuardar(result);
-
     } catch (e) {
       console.error("Error de red al obtener ticket:", e);
       showToast("Error de red al obtener ticket.", "error");
     }
   };
 
-  /**
-   * Decide qué método de impresión usar (servicio local o QZ Tray).
-   * @param {object} result - El objeto de respuesta del backend con los datos del ticket.
-   */
   async function imprimirTicketDespuesDeGuardar(result) {
     const ticketData = result.data || {};
     if (configuredPrinter) {
       ticketData.printerName = configuredPrinter;
     }
-
     if (printMethod === 'service') {
       showToast("Enviando a servicio de impresión local...", "info");
       try {
@@ -1317,7 +1247,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       return;
     }
-
     if (printMethod === 'qztray') {
       showToast("Enviando a QZ Tray...", "info");
       try {
@@ -1326,7 +1255,6 @@ document.addEventListener("DOMContentLoaded", function () {
         showToast("No se pudieron cargar los componentes de QZ Tray.", "error");
         return;
       }
-
       if (typeof qz === "undefined" || !qz.websocket.isActive()) {
         showToast("QZ Tray no está conectado. Conéctelo para poder imprimir.", "warning");
         return;
@@ -1335,9 +1263,7 @@ document.addEventListener("DOMContentLoaded", function () {
         showToast("No hay una impresora configurada para QZ Tray. Vaya a Ajustes.", "error");
         return;
       }
-
       try {
-        // Asumimos que qz-tray-handler.js define una función global `printTicket`
         await printTicket(configuredPrinter, ticketData);
         showToast("Ticket enviado a QZ Tray.", "success");
       } catch (e) {
@@ -1347,9 +1273,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   };
 
-
-  // --- Eventos para el Switch de Impresión ---
-
   pmServiceBtn.addEventListener('click', async () => {
     printMethod = 'service';
     markMethodUI();
@@ -1358,7 +1281,7 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   pmQzBtn.addEventListener('click', () => {
-    if (printMethod === 'qztray') return; // Ya está activo
+    if (printMethod === 'qztray') return;
     qzConfirmModal.classList.remove('hidden');
     qzConfirmModal.classList.add('flex');
   });
@@ -1374,9 +1297,7 @@ document.addEventListener("DOMContentLoaded", function () {
     showToast("Activando QZ Tray...", "info");
     try {
       await loadQZScripts();
-      // Asumimos que qz-tray-handler.js define `connectQz`
       if (typeof connectQz === 'function') {
-        // Pasamos la función de callback para actualizar el estado
         await connectQz(setQzStatus);
       }
       printMethod = 'qztray';
@@ -1400,13 +1321,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-
-  // === FIN: LÓGICA DE IMPRESIÓN ON-DEMAND ===
-
-
-  // --- Inicialización y Asignación de Eventos Generales ---
-
-  // Eventos de la UI del carrito y modales
   cartItemsContainer.addEventListener("click", function (event) {
     const quantityButton = event.target.closest(".quantity-change");
     const removeButton = event.target.closest(".remove-item-btn");
@@ -1491,7 +1405,6 @@ document.addEventListener("DOMContentLoaded", function () {
   searchProductInput.addEventListener("input", filterProducts);
   searchProductInput.addEventListener("keydown", handleBarcodeScan);
 
-  // Configuración de Select2 para clientes
   searchClientSelect.select2({
     width: "100%",
     placeholder: "Buscar cliente por nombre, RFC o teléfono...",
@@ -1521,12 +1434,21 @@ document.addEventListener("DOMContentLoaded", function () {
     selectClient(clientToSelect);
   });
 
-  // --- Carga de datos inicial ---
   function initializePOS() {
-    fetchPrintPrefs(); // Carga la preferencia de impresión del usuario
+    fetchPrintPrefs();
     fetchProducts();
     toggleSaveButton();
     setupCashOpeningModal();
+    
+    if (montoInput) {
+        montoInicialAn = new AutoNumeric(montoInput, {
+            currencySymbol: '',
+            decimalCharacter: '.',
+            digitGroupSeparator: ',',
+            decimalPlaces: 2,
+            minimumValue: '0'
+        });
+    }
   }
 
   initializePOS();

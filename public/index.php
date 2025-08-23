@@ -19,6 +19,7 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 } elseif (
     in_array($action, [
         'getProducts',
+        'getProductsServerSide',
         'createProduct',
         'getProduct',
         'updateProduct',
@@ -44,6 +45,7 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'updateClient',
         'deleteClient',
         'searchClients',
+        'searchProductsSimple',
         'getProductosParaPreciosEspeciales',
         'saveSpecialClientPrice',
         'registrarAbono',
@@ -55,7 +57,7 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 } elseif (in_array($action, ['processSale', 'saveSale', 'getTicketDetails', 'listPendingSales', 'loadSale', 'deletePendingSale', 'generateQuote', 'cancelSale'])) {
     require_once __DIR__ . '/../app/controllers/VentaController.php';
     $controller = new VentaController();
-} elseif (in_array($action, ['getExpenses', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) {
+} elseif (in_array($action, ['getExpenses', 'getGastosServerSide', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) { // <-- RUTA AÑADIDA
     require_once __DIR__ . '/../app/controllers/GastoController.php';
     $controller = new GastoController();
 } elseif (in_array($action, [
@@ -64,7 +66,8 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
     'getCashCut',
     'getDetailedExpenses',
     'getDetailedClientPayments',
-    'getGlobalSalesReport'
+    'getGlobalSalesReport',
+    'getGlobalVentasServerSide'
 ])) {
     require_once __DIR__ . '/../app/controllers/ReporteController.php';
     $controller = new ReporteController();
@@ -72,7 +75,7 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
     require_once __DIR__ . '/../app/controllers/AperturaCajaController.php';
     $controller = new AperturaCajaController();
 } elseif (
-    in_array($action, [ // --- INICIO: NUEVO BLOQUE PARA ADMINISTRACIÓN ---
+    in_array($action, [
         'getSucursales',
         'createSucursal',
         'updateSucursal',
@@ -84,7 +87,6 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'deleteUsuario'
     ])
 ) {
-    // Se asume la existencia de un AdminController que maneja ambas entidades
     require_once __DIR__ . '/../app/controllers/AdminController.php';
     $controller = new AdminController();
 } elseif (in_array($action, ['getPrinterConfig', 'updatePrinterConfig', 'getBranchConfig', 'updateBranchConfig'])) {
@@ -132,6 +134,9 @@ switch ($action) {
     case 'getProducts':
         $controller->getAll();
         break;
+    case 'getProductsServerSide':
+        $controller->getProductsServerSide();
+        break;
     case 'createProduct':
         $controller->create();
         break;
@@ -163,7 +168,7 @@ switch ($action) {
         $controller->searchProducts();
         break;
 
-    // --- RUTAS DE CATÁLOGOS (CATEGORÍAS Y MARCAS) ---
+    // --- RUTAS DE CATÁLOGOS ---
     case 'getCategorias':
         $controller->getCategorias();
         break;
@@ -211,8 +216,11 @@ switch ($action) {
     case 'saveSpecialClientPrice':
         $controller->saveSpecialClientPrice();
         break;
-    case 'getProductosParaPreciosEspeciales':
+   /*  case 'getProductosParaPreciosEspeciales':
         $controller->getProductosParaPreciosEspeciales();
+        break; */
+    case 'searchProductsSimple': // <-- CASE NUEVO
+        $controller->searchProductsSimple();
         break;
     case 'registrarAbono':
         $controller->registrarAbono();
@@ -251,6 +259,9 @@ switch ($action) {
     case 'getExpenses':
         $controller->getAll();
         break;
+    case 'getGastosServerSide':
+        $controller->getGastosServerSide();
+        break; // <-- CASE AÑADIDO
     case 'createExpense':
         $controller->create();
         break;
@@ -284,6 +295,10 @@ switch ($action) {
         $controller->getVentasGlobales();
         break;
 
+    case 'getGlobalVentasServerSide':
+        $controller->getGlobalVentasServerSide();
+        break;
+
     // --- RUTAS DE APERTURA DE CAJA ---
     case 'checkApertura':
         $controller->checkApertura();
@@ -295,7 +310,7 @@ switch ($action) {
         $controller->getMontoApertura();
         break;
 
-    // --- INICIO: NUEVAS RUTAS DE ADMINISTRACIÓN ---
+    // --- RUTAS DE ADMINISTRACIÓN ---
     case 'getSucursales':
         $controller->getAllSucursales();
         break;
@@ -320,9 +335,8 @@ switch ($action) {
     case 'deleteUsuario':
         $controller->deleteUsuario();
         break;
-    // --- FIN: NUEVAS RUTAS DE ADMINISTRACIÓN ---
 
-    // --- RUTAS DE CONFIGURACIÓN (Pueden ser movidas dentro de AdminController si se desea) ---
+    // --- RUTAS DE CONFIGURACIÓN ---
     case 'getBranchConfig':
         $controller->getBranchConfig();
         break;
@@ -335,20 +349,15 @@ switch ($action) {
     case 'updatePrinterConfig':
         $controller->updatePrinterConfig();
         break;
-
     case 'getBranchUsers':
         $controller->getUsersByCurrentBranch();
         break;
-
     case 'getPrintPrefs':
         $controller->getPrintPrefs();
         break;
-
     case 'updatePrintPrefs':
         $controller->updatePrintPrefs();
         break;
-
-
 
     default:
         if (isset($controller)) {

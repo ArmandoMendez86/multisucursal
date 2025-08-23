@@ -7,7 +7,7 @@ class Producto
 {
     private $conn;
     private $table_name = "productos";
-    private $codes_table = "producto_codigos"; // Nueva tabla de códigos
+    private $codes_table = "producto_codigos";
     private $inventory_table = "inventario_sucursal";
     private $special_prices_table = "cliente_precios_especiales";
     private $movements_table = "movimientos_inventario";
@@ -18,6 +18,73 @@ class Producto
         $this->conn = $database->getConnection();
     }
 
+    // --- INICIO: Nuevo método para Server-Side ---
+    public function getAllServerSide($id_sucursal, $params)
+    {
+        $baseQuery = "FROM productos p
+                      LEFT JOIN categorias c ON p.id_categoria = c.id
+                      LEFT JOIN marcas m ON p.id_marca = m.id
+                      LEFT JOIN inventario_sucursal inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal
+                      LEFT JOIN producto_codigos pc ON p.id = pc.id_producto";
+
+        $whereClause = "WHERE p.activo = 1";
+        $bindings = [':id_sucursal' => $id_sucursal];
+
+        // Búsqueda (Filtro)
+        if (!empty($params['search']['value'])) {
+            $searchValue = '%' . $params['search']['value'] . '%';
+            $whereClause .= " AND (p.sku LIKE :search_value OR p.nombre LIKE :search_value OR c.nombre LIKE :search_value OR pc.codigo_barras LIKE :search_value)";
+            $bindings[':search_value'] = $searchValue;
+        }
+
+        // Conteo total de registros (sin filtro de búsqueda)
+        $stmtTotal = $this->conn->prepare("SELECT COUNT(DISTINCT p.id) " . $baseQuery . " WHERE p.activo = 1");
+        $stmtTotal->execute([':id_sucursal' => $id_sucursal]);
+        $recordsTotal = $stmtTotal->fetchColumn();
+
+        // Conteo de registros filtrados
+        $stmtFiltered = $this->conn->prepare("SELECT COUNT(DISTINCT p.id) " . $baseQuery . " " . $whereClause);
+        $stmtFiltered->execute($bindings);
+        $recordsFiltered = $stmtFiltered->fetchColumn();
+
+        // Ordenamiento
+        $columns = ['p.sku', 'p.nombre', 'pc.codigo_barras', 'c.nombre', null, 'p.precio_menudeo'];
+        $orderClause = "ORDER BY " . $columns[$params['order'][0]['column']] . " " . $params['order'][0]['dir'];
+
+        // Paginación
+        $limitClause = "LIMIT :limit OFFSET :offset";
+        $bindings[':limit'] = intval($params['length']);
+        $bindings[':offset'] = intval($params['start']);
+
+        // Consulta principal para obtener los datos
+        $query = "SELECT 
+                    p.id, p.sku, p.nombre, p.costo, p.precio_menudeo,
+                    c.nombre as categoria_nombre,
+                    inv.stock,
+                    GROUP_CONCAT(DISTINCT pc.codigo_barras SEPARATOR ', ') as codigos_barras
+                  " . $baseQuery . "
+                  " . $whereClause . "
+                  GROUP BY p.id
+                  " . $orderClause . "
+                  " . $limitClause;
+
+        $stmtData = $this->conn->prepare($query);
+        // Usar bindValue para LIMIT y OFFSET porque necesitan ser enteros
+        foreach ($bindings as $key => &$val) {
+            $stmtData->bindValue($key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
+        }
+        $stmtData->execute();
+        $data = $stmtData->fetchAll(PDO::FETCH_ASSOC);
+
+        return [
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data
+        ];
+    }
+    // --- FIN: Nuevo método para Server-Side ---
+
+
     public function getAllSimple()
     {
         $query = "SELECT id, sku, nombre, precio_menudeo FROM " . $this->table_name . " WHERE activo = 1 ORDER BY nombre ASC";
@@ -26,9 +93,11 @@ class Producto
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getAll($id_sucursal, $limit = null, $offset = null)
+    /**
+     * @deprecated Este método ya no se usa para la tabla principal. Se reemplaza por getAllServerSide.
+     */
+    public function getAll($id_sucursal)
     {
-        // Se elimina p.codigo_barras y se agrega el GROUP_CONCAT para los nuevos códigos
         $query = "SELECT 
                     p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, p.costo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, p.activo,
                     c.nombre as categoria_nombre,
@@ -52,7 +121,6 @@ class Producto
 
     public function findByBarcodeOrSku($code, $id_sucursal)
     {
-        // La consulta ahora busca en la tabla de productos (por SKU) y en la nueva tabla de códigos
         $query = "SELECT 
                     p.*, 
                     inv.stock, 
@@ -77,21 +145,20 @@ class Producto
     {
         $this->conn->beginTransaction();
         try {
-            // Se elimina codigo_barras de la inserción principal
-            $query_producto = "INSERT INTO " . $this->table_name . " (id_categoria, id_marca, nombre, descripcion, sku, precio_menudeo, precio_mayoreo) VALUES (:id_categoria, :id_marca, :nombre, :descripcion, :sku, :precio_menudeo, :precio_mayoreo)";
+            $query_producto = "INSERT INTO " . $this->table_name . " (id_categoria, id_marca, nombre, descripcion, sku, costo, precio_menudeo, precio_mayoreo) VALUES (:id_categoria, :id_marca, :nombre, :descripcion, :sku, :costo, :precio_menudeo, :precio_mayoreo)";
             $stmt_producto = $this->conn->prepare($query_producto);
             $stmt_producto->bindParam(':id_categoria', $data['id_categoria']);
             $stmt_producto->bindParam(':id_marca', $data['id_marca']);
             $stmt_producto->bindParam(':nombre', $data['nombre']);
             $stmt_producto->bindParam(':descripcion', $data['descripcion']);
             $stmt_producto->bindParam(':sku', $data['sku']);
+            $stmt_producto->bindParam(':costo', $data['costo']);
             $stmt_producto->bindParam(':precio_menudeo', $data['precio_menudeo']);
             $stmt_producto->bindParam(':precio_mayoreo', $data['precio_mayoreo']);
 
             if ($stmt_producto->execute()) {
                 $id_producto_nuevo = $this->conn->lastInsertId();
 
-                // Insertar los múltiples códigos de barras
                 if (!empty($data['codigos_barras']) && is_array($data['codigos_barras'])) {
                     $query_codigos = "INSERT INTO " . $this->codes_table . " (id_producto, codigo_barras) VALUES (:id_producto, :codigo_barras)";
                     $stmt_codigos = $this->conn->prepare($query_codigos);
@@ -99,7 +166,6 @@ class Producto
                         $codigo_limpio = trim($codigo);
                         if (!empty($codigo_limpio)) {
                             $stmt_codigos->bindParam(':id_producto', $id_producto_nuevo);
-                            // CORRECCIÓN: Usar bindValue en lugar de bindParam
                             $stmt_codigos->bindValue(':codigo_barras', $codigo_limpio);
                             $stmt_codigos->execute();
                         }
@@ -139,7 +205,6 @@ class Producto
 
     public function getById($id, $id_sucursal)
     {
-        // Se añade la obtención de los múltiples códigos de barras
         $query = "SELECT 
                     p.*, 
                     inv.stock, 
@@ -160,7 +225,6 @@ class Producto
         $stmt->execute();
         $producto = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Convertir la cadena de códigos en un array
         if ($producto && !empty($producto['codigos_barras'])) {
             $producto['codigos_barras'] = explode(',', $producto['codigos_barras']);
         } else if ($producto) {
@@ -177,8 +241,7 @@ class Producto
             $currentProduct = $this->getById($id, $id_sucursal);
             $oldStock = $currentProduct['stock'] ?? 0;
 
-            // Se elimina codigo_barras de la actualización principal
-            $query_producto = "UPDATE " . $this->table_name . " SET id_categoria = :id_categoria, id_marca = :id_marca, nombre = :nombre, descripcion = :descripcion, sku = :sku, precio_menudeo = :precio_menudeo, precio_mayoreo = :precio_mayoreo WHERE id = :id";
+            $query_producto = "UPDATE " . $this->table_name . " SET id_categoria = :id_categoria, id_marca = :id_marca, nombre = :nombre, descripcion = :descripcion, sku = :sku, costo = :costo, precio_menudeo = :precio_menudeo, precio_mayoreo = :precio_mayoreo WHERE id = :id";
             $stmt_producto = $this->conn->prepare($query_producto);
             $stmt_producto->bindParam(':id', $id);
             $stmt_producto->bindParam(':id_categoria', $data['id_categoria']);
@@ -186,17 +249,16 @@ class Producto
             $stmt_producto->bindParam(':nombre', $data['nombre']);
             $stmt_producto->bindParam(':descripcion', $data['descripcion']);
             $stmt_producto->bindParam(':sku', $data['sku']);
+            $stmt_producto->bindParam(':costo', $data['costo']);
             $stmt_producto->bindParam(':precio_menudeo', $data['precio_menudeo']);
             $stmt_producto->bindParam(':precio_mayoreo', $data['precio_mayoreo']);
 
             if ($stmt_producto->execute()) {
-                // Eliminar códigos de barras existentes
                 $query_delete_codigos = "DELETE FROM " . $this->codes_table . " WHERE id_producto = :id_producto";
                 $stmt_delete = $this->conn->prepare($query_delete_codigos);
                 $stmt_delete->bindParam(':id_producto', $id);
                 $stmt_delete->execute();
 
-                // Insertar los nuevos códigos de barras
                 if (!empty($data['codigos_barras']) && is_array($data['codigos_barras'])) {
                     $query_insert_codigos = "INSERT INTO " . $this->codes_table . " (id_producto, codigo_barras) VALUES (:id_producto, :codigo_barras)";
                     $stmt_insert = $this->conn->prepare($query_insert_codigos);
@@ -204,7 +266,6 @@ class Producto
                         $codigo_limpio = trim($codigo);
                         if (!empty($codigo_limpio)) {
                             $stmt_insert->bindParam(':id_producto', $id);
-                            // CORRECCIÓN: Usar bindValue en lugar de bindParam
                             $stmt_insert->bindValue(':codigo_barras', $codigo_limpio);
                             $stmt_insert->execute();
                         }
@@ -251,7 +312,6 @@ class Producto
 
     public function delete($id)
     {
-        // ON DELETE CASCADE se encargará de los códigos en producto_codigos
         $query = "DELETE FROM " . $this->table_name . " WHERE id = :id";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id', $id);
@@ -384,7 +444,6 @@ class Producto
 
     public function findStockInAllBranches($searchTerm)
     {
-        // Se añade la búsqueda por la nueva tabla de códigos
         $query = "SELECT 
                     p.id AS producto_id,
                     p.sku,
@@ -439,6 +498,20 @@ class Producto
         $stmt->bindParam(':like', $like);
         $stmt->bindParam(':offset', $offset, PDO::PARAM_INT);
         $stmt->bindParam(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Añade este método a tu clase Producto en app/models/Producto.php
+    public function searchSimpleByNameOrSku($term)
+    {
+        $query = "SELECT id, nombre, sku, precio_menudeo 
+              FROM productos 
+              WHERE (nombre LIKE :term OR sku LIKE :term) AND activo = 1 
+              LIMIT 10";
+        $stmt = $this->conn->prepare($query);
+        $searchTerm = "%" . $term . "%";
+        $stmt->bindParam(':term', $searchTerm);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

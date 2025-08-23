@@ -24,45 +24,44 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     }
 
     ::-webkit-scrollbar-track {
-      background: #1e293b;
+      background: var(--color-bg-primary);
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #4a5568;
+      background: var(--color-border);
       border-radius: 10px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #718096;
+      background: var(--color-text-secondary);
     }
   </style>
 </head>
 
-<body class="bg-[#0f172a] text-gray-300">
+<body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
   <div class="flex h-screen">
 
     <?php include_once '../parciales/navegacion.php'; ?>
 
     <!-- Contenido Principal -->
     <main class="flex-1 p-8 overflow-y-auto">
-      <!-- MODIFICADO: Encabezado ahora se oculta en el breakpoint 'lg' -->
-      <header class="lg:hidden flex items-center justify-between bg-[#1e293b] p-4 shadow-md flex-shrink-0">
-        <button id="mobile-menu-button" class="text-white focus:outline-none">
+      <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+        <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
           <i class="fas fa-bars text-2xl"></i>
         </button>
-        <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
+        <h1 class="text-lg font-bold text-[var(--color-text-primary)]">Impresoras</h1>
         <div class="w-8"></div>
       </header>
-      <h1 class="text-3xl font-bold text-white mb-8">
+      <h1 class="text-3xl font-bold text-[var(--color-text-primary)] mb-8">
         Configuración de Impresora
       </h1>
-      <div class="bg-[#1e293b] p-6 rounded-lg max-w-lg mx-auto">
+      <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg max-w-lg mx-auto">
         <form id="printer-form" class="space-y-6">
           <div>
-            <h3 class="text-lg font-semibold text-white mb-2">
+            <h3 class="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
               Impresora de Tickets
             </h3>
-            <p class="text-sm text-gray-400 mb-4">
+            <p class="text-sm text-[var(--color-text-secondary)] mb-4">
               Selecciona la impresora térmica que usarás para imprimir los
               recibos en esta estación de trabajo.
             </p>
@@ -70,11 +69,11 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
               <div class="flex-1">
                 <label
                   for="impresora_tickets"
-                  class="block text-sm font-medium text-gray-300 mb-1">Impresora Seleccionada</label>
+                  class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Impresora Seleccionada</label>
                 <select
                   id="impresora_tickets"
                   name="impresora_tickets"
-                  class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600">
+                  class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
                   <option value="">-- Busque impresoras --</option>
                 </select>
               </div>
@@ -85,7 +84,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                 <i class="fas fa-search mr-2"></i> Buscar
               </button>
             </div>
-            <p id="qz-status" class="text-xs text-gray-500 mt-2">
+            <p id="qz-status" class="text-xs text-[var(--color-text-secondary)] mt-2">
               Estado de QZ Tray:
               <span class="font-semibold">Desconectado</span>
             </p>
@@ -93,7 +92,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
           <div class="pt-4 flex justify-end">
             <button
               type="submit"
-              class="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-2 px-6 rounded-lg">
+              class="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold py-2 px-6 rounded-lg">
               Guardar Impresora
             </button>
           </div>

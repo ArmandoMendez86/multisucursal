@@ -17,41 +17,77 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             font-family: 'Inter', sans-serif;
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* --- Estilos Generales y Scrollbar con Variables de Tema --- */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--color-bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
+
+        /* --- Estilos para DataTables adaptados al tema --- */
+        .dataTables_wrapper .dataTables_filter input,
+        .dataTables_wrapper .dataTables_length select,
+        .dt-buttons .dt-button {
+            background-color: var(--color-bg-primary) !important;
+            color: var(--color-text-primary) !important;
+            border: 1px solid var(--color-border) !important;
+            border-radius: 0.375rem !important;
+            padding: 0.5rem !important;
         }
 
-        ::-webkit-scrollbar-track {
-            background: #1e293b;
+        .dt-buttons .dt-button:hover {
+            background-color: var(--color-border) !important;
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #4a5568;
-            border-radius: 10px;
+        .dataTables_wrapper .dataTables_filter label,
+        .dataTables_wrapper .dataTables_length label,
+        .dataTables_wrapper .dataTables_info {
+            color: var(--color-text-secondary) !important;
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #718096;
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: var(--color-text-primary) !important;
+            border: 1px solid transparent;
         }
 
-        /* Estilo para el contenedor de la tabla con scroll */
-        .table-scroll-container {
-            max-height: 400px;
-            /* Altura máxima para el scroll, ajusta según necesidad */
-            overflow-y: auto;
-            /* Habilita el scroll vertical */
-            border-radius: 0.5rem;
-            /* Bordes redondeados */
-            background-color: #1e293b;
-            /* Fondo similar al de la tarjeta */
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            color: var(--color-text-secondary) !important;
+        }
+        
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: var(--color-accent) !important;
+            border-color: var(--color-accent) !important;
+            color: white !important;
         }
 
-        /* Estilo para el Ticket ID */
+        table.dataTable thead th {
+            border-bottom: 2px solid var(--color-border) !important;
+        }
+        
+        table.dataTable tbody tr {
+            background-color: var(--color-bg-secondary);
+        }
+
+        table.dataTable tbody tr:hover {
+            background-color: var(--color-bg-primary);
+        }
+        
+        table.dataTable tbody td {
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        table.dataTable.no-footer {
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .dataTables_wrapper .dataTables_processing {
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-border);
+        }
+
         .ticket-id-cell {
             color: #818cf8;
-            /* Un color azul claro para hacerlo intuitivo */
             font-weight: 600;
-            /* Un poco más de énfasis */
         }
     </style>
     <!-- DataTables + Buttons -->
@@ -60,55 +96,31 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
 </head>
 
-<body class="bg-[#0f172a] text-gray-300">
+<body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
 
     <div class="flex h-screen">
-
 
         <?php include_once '../parciales/navegacion.php'; ?>
 
         <!-- Contenido Principal -->
         <main class="flex-1 p-8 overflow-y-auto">
-            <!-- MODIFICADO: Encabezado ahora se oculta en el breakpoint 'lg' -->
-            <header class="lg:hidden flex items-center justify-between bg-[#1e293b] p-4 shadow-md flex-shrink-0">
-                <button id="mobile-menu-button" class="text-white focus:outline-none">
+            <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+                <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
                     <i class="fas fa-bars text-2xl"></i>
                 </button>
-                <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
+                <h1 class="text-lg font-bold text-[var(--color-text-primary)]">Reportes</h1>
                 <div class="w-8"></div>
             </header>
-            <h1 class="text-3xl font-bold text-white mb-8">Reportes y Análisis</h1>
+            <h1 class="text-3xl font-bold text-[var(--color-text-primary)] mb-8">Reportes y Análisis</h1>
 
             <!-- Sección de Reporte de Ventas -->
-            <div class="bg-[#1e293b] p-6 rounded-lg mb-8">
-                <h2 class="text-xl font-semibold text-white mb-4">Reporte de Ventas</h2>
-                <!-- Filtros -->
-                <div class="flex flex-wrap items-end gap-4 mb-6" style="display: none !important;">
-                    <div>
-                        <label for="start-date" class="block text-sm font-medium text-gray-300 mb-1">Fecha de
-                            Inicio</label>
-                        <input type="date" id="start-date"
-                            class="bg-gray-700 text-white rounded-md p-2 border border-gray-600">
-                    </div>
-                    <div>
-                        <label for="end-date" class="block text-sm font-medium text-gray-300 mb-1">Fecha de Fin</label>
-                        <input type="date" id="end-date"
-                            class="bg-gray-700 text-white rounded-md p-2 border border-gray-600">
-                    </div>
-                    <button id="generate-report-btn"
-                        class="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-2 px-4 rounded-lg">Generar
-                        Reporte</button>
-                    <button id="export-csv-btn"
-                        class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg flex items-center">
-                        <i class="fas fa-file-csv mr-2"></i> Exportar a CSV
-                    </button>
-                </div>
-
+            <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg mb-8">
+                <h2 class="text-xl font-semibold text-[var(--color-text-primary)] mb-4">Reporte de Ventas</h2>
+                
                 <!-- Tabla de Reporte -->
-
-                <div class="bg-[#1e293b] rounded-lg shadow overflow-auto mb-8 p-4">
+                <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow overflow-auto mb-8 p-4">
                     <table id="tablaVentas" class="min-w-full">
-                        <thead class="bg-gray-800 text-xs text-gray-400 uppercase sticky top-0">
+                        <thead class="text-xs text-[var(--color-text-secondary)] uppercase">
                             <tr>
                                 <th class="py-3 px-6 text-left">Fecha</th>
                                 <th class="py-3 px-6 text-left">Ticket ID</th>
@@ -119,62 +131,39 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                                 <th class="py-3 px-6 text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody id="report-table-body" class="divide-y divide-gray-700 text-xs">
-                            <!--   <tr>
-                            <td colspan="7" class="text-center py-10 text-gray-500">Seleccione un rango de fechas y
-                                genere un reporte.</td>
-                        </tr> -->
-                            <!-- Ejemplo de fila con Ticket ID de color. En tu JS, cuando generes las filas,
-                                 asegúrate de añadir la clase 'ticket-id-cell' a la celda del Ticket ID. -->
-                            <!-- <tr>
-                                <td class="py-3 px-6 text-left">2024-07-24</td>
-                                <td class="py-3 px-6 text-left ticket-id-cell">TICKET-00123</td>
-                                <td class="py-3 px-6 text-left">Cliente Ejemplo</td>
-                                <td class="py-3 px-6 text-left">Vendedor A</td>
-                                <td class="py-3 px-6 text-right">$150.00</td>
-                                <td class="py-3 px-6 text-left">Completada</td>
-                                <td class="py-3 px-6 text-center">
-                                    <button class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-xs">
-                                        Cancelar
-                                    </button>
-                                </td>
-                            </tr> -->
+                        <tbody class="text-sm">
+                            <!-- El contenido se carga vía server-side por DataTables -->
                         </tbody>
                     </table>
                 </div>
-
             </div>
 
             <!-- Sección de Corte de Caja -->
-            <div class="bg-[#1e293b] p-6 rounded-lg">
-                <h2 class="text-xl font-semibold text-white mb-4">Corte de Caja Diaria</h2>
+            <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+                <h2 class="text-xl font-semibold text-[var(--color-text-primary)] mb-4">Corte de Caja Diaria</h2>
                 <!-- Filtros para el Corte de Caja -->
                 <div class="flex flex-wrap items-end gap-4 mb-6">
                     <div>
-                        <label for="cash-cut-date" class="block text-sm font-medium text-gray-300 mb-1">Fecha del
-                            Corte</label>
+                        <label for="cash-cut-date" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Fecha del Corte</label>
                         <input type="date" id="cash-cut-date"
-                            class="bg-gray-700 text-white rounded-md p-2 border border-gray-600">
+                            class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)]">
                     </div>
                     <div>
-                        <label for="initial-cash" class="block text-sm font-medium text-gray-300 mb-1">Caja
-                            Inicial</label>
+                        <label for="initial-cash" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Caja Inicial</label>
                         <input type="number" id="initial-cash" value="0.00" step="0.01"
-                            class="bg-gray-700 text-white rounded-md p-2 border border-gray-600 w-32">
+                            class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] w-32">
                     </div>
                     <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] === 'Administrador'): ?>
                         <div>
-                            <label for="user-filter-select" class="block text-sm font-medium text-gray-300 mb-1">Filtrar por
-                                Usuario</label>
+                            <label for="user-filter-select" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Filtrar por Usuario</label>
                             <select id="user-filter-select"
-                                class="bg-gray-700 text-white rounded-md p-2 border border-gray-600">
+                                class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)]">
                                 <option value="all">General (Toda la Sucursal)</option>
                             </select>
                         </div>
                     <?php endif; ?>
                     <button id="generate-cash-cut-btn"
-                        class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Generar Corte de
-                        Caja</button>
+                        class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Generar Corte de Caja</button>
                     <button id="print-cash-cut-btn"
                         class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg flex items-center">
                         <i class="fas fa-print mr-2"></i> Imprimir Corte
@@ -182,7 +171,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                 </div>
                 <!-- Aquí irán los resultados del corte -->
                 <div id="cash-cut-results" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <p class="text-gray-400 col-span-full">Seleccione una fecha para generar el corte de caja.</p>
+                    <p class="text-[var(--color-text-secondary)] col-span-full">Seleccione una fecha para generar el corte de caja.</p>
                 </div>
             </div>
         </main>

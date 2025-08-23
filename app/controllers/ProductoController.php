@@ -12,7 +12,7 @@ class ProductoController
         $this->productoModel = new Producto();
     }
 
-    // ... (getProductForPOS, getAll, getByBarcode, create, getById, update, delete van aquí sin cambios)
+    // ... (getProductForPOS, getByBarcode, create, etc. se mantienen igual)
 
     public function getProductForPOS()
     {
@@ -48,6 +48,9 @@ class ProductoController
         }
     }
 
+    /**
+     * @deprecated Este método ya no se usa para la tabla principal. Se reemplaza por getProductsServerSide.
+     */
     public function getAll()
     {
         header('Content-Type: application/json');
@@ -58,15 +61,45 @@ class ProductoController
         }
         try {
             $id_sucursal = $_SESSION['branch_id'];
-            $limit = isset($_GET['limit']) ? intval($_GET['limit']) : null;
-            $offset = isset($_GET['offset']) ? intval($_GET['offset']) : null;
-            $productos = $this->productoModel->getAll($id_sucursal, $limit, $offset);
+            $productos = $this->productoModel->getAll($id_sucursal);
             echo json_encode(['success' => true, 'data' => $productos]);
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Error al obtener los productos: ' . $e->getMessage()]);
         }
     }
+
+    // --- INICIO: Nuevo método para Server-Side ---
+    public function getProductsServerSide()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
+            return;
+        }
+
+        $params = $_REQUEST;
+        $id_sucursal = $_SESSION['branch_id'];
+
+        try {
+            $result = $this->productoModel->getAllServerSide($id_sucursal, $params);
+
+            $json_data = [
+                "draw"            => intval($params['draw']),
+                "recordsTotal"    => intval($result['recordsTotal']),
+                "recordsFiltered" => intval($result['recordsFiltered']),
+                "data"            => $result['data']
+            ];
+
+            echo json_encode($json_data);
+        } catch (Exception $e) {
+            http_response_code(500);
+            // Para depuración, es útil ver el error. En producción, se puede cambiar por un mensaje genérico.
+            echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
+        }
+    }
+    // --- FIN: Nuevo método para Server-Side ---
 
     public function getByBarcode()
     {
@@ -102,7 +135,7 @@ class ProductoController
             echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
             return;
         }
-        $data = (array) json_decode(file_get_contents('php://input'), true); // Se añade true para asegurar array asociativo
+        $data = (array) json_decode(file_get_contents('php://input'), true);
         if (empty($data['nombre']) || empty($data['sku'])) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Datos incompletos.']);
@@ -159,7 +192,7 @@ class ProductoController
             return;
         }
 
-        $data = (array) json_decode(file_get_contents('php://input'), true); // Se añade true
+        $data = (array) json_decode(file_get_contents('php://input'), true);
         if (empty($data['id'])) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'ID de producto no proporcionado.']);
@@ -230,13 +263,10 @@ class ProductoController
             return;
         }
 
-        // --- CAMBIO IMPORTANTE ---
-        // Se usa la variable de sesión correcta 'rol' en lugar de 'user_role'.
-        $id_sucursal = $_SESSION['branch_id']; // Valor por defecto
+        $id_sucursal = $_SESSION['branch_id'];
         if (isset($_SESSION['rol']) && $_SESSION['rol'] === 'Super' && !empty($data['id_sucursal'])) {
             $id_sucursal = filter_var($data['id_sucursal'], FILTER_SANITIZE_NUMBER_INT);
         }
-        // --- FIN DEL CAMBIO ---
 
         try {
             $success = $this->productoModel->updateStock(

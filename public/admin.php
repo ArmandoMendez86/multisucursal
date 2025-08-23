@@ -15,34 +15,54 @@ if ($_SESSION['rol'] !== 'Super') {
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
         @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
-        body { font-family: 'Inter', sans-serif; }
-        .modal-overlay { background-color: rgba(0, 0, 0, 0.75); }
-        .tab-btn.active { background-color: #4f46e5; color: white; border-color: #4f46e5; }
-        .tab-btn { background-color: transparent; color: #9ca3af; border-color: transparent; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
+        body { 
+            font-family: 'Inter', sans-serif; 
+        }
+        .modal-overlay { 
+            background-color: rgba(0, 0, 0, 0.75); 
+        }
+        /* Estilos de Pestañas con Variables de Tema */
+        .tab-btn {
+            background-color: transparent;
+            color: var(--color-text-secondary);
+            border-color: transparent;
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-btn:hover {
+            color: var(--color-text-primary);
+        }
+        .tab-btn.active { 
+            background-color: var(--color-accent); 
+            color: white; 
+            border-color: var(--color-accent); 
+        }
+        .tab-content { 
+            display: none; 
+        }
+        .tab-content.active { 
+            display: block; 
+        }
     </style>
 </head>
-<body class="bg-[#0f172a] text-gray-300 flex h-screen overflow-hidden">
+<body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] flex h-screen overflow-hidden">
 
     <?php $currentPage = 'admin.php'; ?>
     <?php include_once __DIR__ . '/../parciales/navegacion.php'; ?>
 
     <main class="flex-1 p-6 overflow-y-auto">
 
-     <!-- MODIFICADO: Encabezado ahora se oculta en el breakpoint 'lg' -->
-      <header class="lg:hidden flex items-center justify-between bg-[#1e293b] p-4 shadow-md flex-shrink-0">
-        <button id="mobile-menu-button" class="text-white focus:outline-none">
+      <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+        <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
           <i class="fas fa-bars text-2xl"></i>
         </button>
-        <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
+        <h1 class="text-lg font-bold text-[var(--color-text-primary)]">Administración</h1>
         <div class="w-8"></div>
       </header>
         <div class="max-w-7xl mx-auto">
-            <h1 class="text-3xl font-bold text-white mb-6">Administración del Sistema</h1>
+            <h1 class="text-3xl font-bold text-[var(--color-text-primary)] mb-6">Administración del Sistema</h1>
 
             <div class="mb-6">
-                <div class="border-b border-gray-700">
+                <div class="border-b border-[var(--color-border)]">
                     <nav class="-mb-px flex space-x-4" aria-label="Tabs">
                         <button class="tab-btn active whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm rounded-t-lg" data-tab="sucursales">
                             <i class="fas fa-building mr-2"></i>Sucursales

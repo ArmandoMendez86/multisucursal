@@ -23,21 +23,21 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         }
 
         ::-webkit-scrollbar-track {
-            background: #1e293b;
+            background: var(--color-bg-primary);
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #4a5568;
+            background: var(--color-border);
             border-radius: 10px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #718096;
+            background: var(--color-text-secondary);
         }
     </style>
 </head>
 
-<body class="bg-[#0f172a] text-gray-300">
+<body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
 
     <div class="flex h-screen">
 
@@ -45,45 +45,44 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
         <!-- Contenido Principal -->
         <main class="flex-1 p-8 overflow-y-auto">
-            <!-- MODIFICADO: Encabezado ahora se oculta en el breakpoint 'lg' -->
-            <header class="lg:hidden flex items-center justify-between bg-[#1e293b] p-4 shadow-md flex-shrink-0">
-                <button id="mobile-menu-button" class="text-white focus:outline-none">
+            <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+                <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
                     <i class="fas fa-bars text-2xl"></i>
                 </button>
-                <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
+                <h1 class="text-lg font-bold text-[var(--color-text-primary)]">Configuración</h1>
                 <div class="w-8"></div>
             </header>
-            <h1 class="text-3xl font-bold text-white mb-8">Configuración de la Sucursal</h1>
+            <h1 class="text-3xl font-bold text-[var(--color-text-primary)] mb-8">Configuración de la Sucursal</h1>
 
-            <div class="bg-[#1e293b] p-6 rounded-lg max-w-2xl mx-auto">
+            <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg max-w-2xl mx-auto">
                 <div id="admin-only-message" class="hidden bg-yellow-900 border border-yellow-700 text-yellow-300 px-4 py-3 rounded-lg mb-6">
                     <p><i class="fas fa-exclamation-triangle mr-2"></i>Esta sección solo puede ser editada por un Administrador.</p>
                 </div>
                 <form id="config-form" class="space-y-6">
                     <div>
-                        <label for="nombre" class="block text-sm font-medium text-gray-300 mb-1">Nombre de la Sucursal</label>
-                        <input type="text" id="nombre" name="nombre" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]" required>
+                        <label for="nombre" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Nombre de la Sucursal</label>
+                        <input type="text" id="nombre" name="nombre" class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]" required>
                     </div>
                     <div>
-                        <label for="direccion" class="block text-sm font-medium text-gray-300 mb-1">Dirección</label>
-                        <textarea id="direccion" name="direccion" rows="3" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]"></textarea>
+                        <label for="direccion" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Dirección</label>
+                        <textarea id="direccion" name="direccion" rows="3" class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]"></textarea>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label for="telefono" class="block text-sm font-medium text-gray-300 mb-1">Teléfono</label>
-                            <input type="tel" id="telefono" name="telefono" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]">
+                            <label for="telefono" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Teléfono</label>
+                            <input type="tel" id="telefono" name="telefono" class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
                         </div>
                         <div>
-                            <label for="email" class="block text-sm font-medium text-gray-300 mb-1">Email</label>
-                            <input type="email" id="email" name="email" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]">
+                            <label for="email" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Email</label>
+                            <input type="email" id="email" name="email" class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
                         </div>
                     </div>
                     <div>
-                        <label for="logo_url" class="block text-sm font-medium text-gray-300 mb-1">URL del Logo</label>
-                        <input type="text" id="logo_url" name="logo_url" placeholder="https://ejemplo.com/logo.png" class="w-full bg-gray-700 text-white rounded-md p-2 border border-gray-600 focus:ring-[#4f46e5] focus:border-[#4f46e5]">
+                        <label for="logo_url" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">URL del Logo</label>
+                        <input type="text" id="logo_url" name="logo_url" placeholder="https://ejemplo.com/logo.png" class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
                     </div>
                     <div class="pt-4 flex justify-end">
-                        <button type="submit" id="save-config-btn" class="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-bold py-2 px-6 rounded-lg">Guardar Cambios</button>
+                        <button type="submit" id="save-config-btn" class="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold py-2 px-6 rounded-lg">Guardar Cambios</button>
                     </div>
                 </form>
             </div>

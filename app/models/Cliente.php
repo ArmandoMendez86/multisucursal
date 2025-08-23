@@ -48,7 +48,7 @@ class Cliente
         } else {
             $orderQuery = " ORDER BY nombre ASC";
         }
-        
+
         $limitQuery = "";
         if (isset($request['length']) && $request['length'] != -1) {
             $limitQuery = " LIMIT :limit OFFSET :offset";
@@ -64,10 +64,10 @@ class Cliente
             $stmtData->bindValue(':limit', (int)$request['length'], PDO::PARAM_INT);
             $stmtData->bindValue(':offset', (int)$request['start'], PDO::PARAM_INT);
         }
-        
+
         $stmtData->execute();
         $clients = $stmtData->fetchAll(PDO::FETCH_ASSOC);
-        
+
         $data = [];
         foreach ($clients as $client) {
             $deuda = (float)($client['deuda_actual'] ?? 0);
@@ -231,11 +231,22 @@ class Cliente
 
     private function getPreciosEspeciales($id_cliente)
     {
-        $query = "SELECT id_producto, precio_especial FROM " . $this->special_prices_table . " WHERE id_cliente = :id_cliente";
+        // --- MODIFICACIÓN CLAVE ---
+        // Se une con la tabla de productos para obtener todos los datos necesarios.
+        $query = "SELECT 
+                    pe.id_producto, 
+                    pe.precio_especial,
+                    p.nombre,
+                    p.sku,
+                    p.precio_menudeo
+                  FROM " . $this->special_prices_table . " pe
+                  JOIN productos p ON pe.id_producto = p.id
+                  WHERE pe.id_cliente = :id_cliente";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id_cliente', $id_cliente);
         $stmt->execute();
-        return $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        // Devuelve un array de objetos, cada uno con los detalles del producto y su precio especial.
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     private function guardarPreciosEspeciales($id_cliente, $precios)

@@ -13,6 +13,82 @@ class Reporte
         $this->conn = $database->getConnection();
     }
 
+    public function getGlobalVentasServerSide($params)
+    {
+        $columns = ['v.fecha', 'v.id', 's.nombre', 'c.nombre', 'u.nombre', 'v.total', 'v.estado'];
+        $orderBy = $columns[$params['order'][0]['column']] ?? 'v.fecha';
+        $orderDir = strtoupper($params['order'][0]['dir']) === 'ASC' ? 'ASC' : 'DESC';
+
+        $where = "";
+        $queryParams = [];
+
+        if (!empty($params['startDate']) && !empty($params['endDate'])) {
+            $where .= " WHERE v.fecha BETWEEN :startDate AND :endDate ";
+            $queryParams[':startDate'] = $params['startDate'] . " 00:00:00";
+            $queryParams[':endDate']   = $params['endDate']   . " 23:59:59";
+        }
+
+        $base = " FROM ventas v
+                  JOIN clientes c ON v.id_cliente = c.id
+                  JOIN usuarios u ON v.id_usuario = u.id
+                  JOIN sucursales s ON v.id_sucursal = s.id ";
+
+        $sqlTotal = "SELECT COUNT(v.id) as cnt " . $base;
+        $stmtTotal = $this->conn->prepare($sqlTotal);
+        $stmtTotal->execute();
+        $recordsTotal = (int)($stmtTotal->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
+
+        $whereSearch = $where;
+        $paramsSearch = $queryParams;
+        if (!empty($params['search']['value'])) {
+            $searchValue = '%' . $params['search']['value'] . '%';
+            $whereSearch .= ($where ? " AND " : " WHERE ") . "(c.nombre LIKE :search OR u.nombre LIKE :search OR s.nombre LIKE :search OR v.id LIKE :search OR v.estado LIKE :search)";
+            $paramsSearch[':search'] = $searchValue;
+        }
+
+        $sqlFiltered = "SELECT COUNT(v.id) as cnt " . $base . $whereSearch;
+        $stmtFiltered = $this->conn->prepare($sqlFiltered);
+        foreach ($paramsSearch as $key => $val) {
+            $stmtFiltered->bindValue($key, $val);
+        }
+        $stmtFiltered->execute();
+        $recordsFiltered = (int)($stmtFiltered->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
+
+        $sqlData = "SELECT v.id, v.fecha, v.total, v.estado, c.nombre as cliente_nombre, u.nombre as usuario_nombre, s.nombre as sucursal_nombre "
+            . $base . $whereSearch
+            . " ORDER BY $orderBy $orderDir LIMIT :start, :length";
+
+        $stmtData = $this->conn->prepare($sqlData);
+        foreach ($paramsSearch as $key => $val) {
+            $stmtData->bindValue($key, $val);
+        }
+        $stmtData->bindValue(':start', intval($params['start']), PDO::PARAM_INT);
+        $stmtData->bindValue(':length', intval($params['length']), PDO::PARAM_INT);
+        $stmtData->execute();
+        $rows = $stmtData->fetchAll(PDO::FETCH_ASSOC);
+
+        $data = [];
+        foreach ($rows as $r) {
+            $acciones = '<button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded-lg text-xs view-pdf-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Ver PDF"><i class="fas fa-file-pdf"></i></button>';
+            $data[] = [
+                'fecha' => $r['fecha'],
+                'id' => $r['id'],
+                'sucursal_nombre' => $r['sucursal_nombre'],
+                'cliente_nombre' => $r['cliente_nombre'],
+                'usuario_nombre' => $r['usuario_nombre'],
+                'total' => $r['total'],
+                'estado' => $r['estado'],
+                'acciones' => $acciones
+            ];
+        }
+
+        return [
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => $data
+        ];
+    }
+
     // --- CAMBIO: Firma del método y consulta SQL actualizadas ---
     public function getVentasPorFecha($id_sucursal, $fecha_inicio, $fecha_fin, $id_vendedor = null)
     {

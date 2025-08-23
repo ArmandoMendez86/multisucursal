@@ -23,83 +23,72 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     }
 
     ::-webkit-scrollbar-track {
-      background: #1e293b;
+      background: var(--color-bg-primary);
     }
 
     ::-webkit-scrollbar-thumb {
-      background: #4a5568;
+      background: var(--color-border);
       border-radius: 10px;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-      background: #718096;
+      background: var(--color-text-secondary);
     }
   </style>
 </head>
 
-<body class="bg-[#0f172a] text-gray-300">
+<body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]">
   <div class="flex h-screen">
 
     <?php include_once '../parciales/navegacion.php'; ?>
 
-
-
     <!-- Contenido Principal -->
     <main class="flex-1 p-8 overflow-y-auto">
 
-      <!-- MODIFICADO: Encabezado ahora se oculta en el breakpoint 'lg' -->
-      <header class="lg:hidden flex items-center justify-between bg-[#1e293b] p-4 shadow-md flex-shrink-0">
-        <button id="mobile-menu-button" class="text-white focus:outline-none">
+      <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+        <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
           <i class="fas fa-bars text-2xl"></i>
         </button>
-        <h1 class="text-lg font-bold text-white">Punto de Venta</h1>
+        <h1 class="text-lg font-bold text-[var(--color-text-primary)]">Dashboard</h1>
         <div class="w-8"></div>
       </header>
 
 
-      <h1 class="text-3xl font-bold text-white mb-8">Dashboard</h1>
+      <h1 class="text-3xl font-bold text-[var(--color-text-primary)] mb-8">Dashboard</h1>
 
       <!-- Métricas Principales -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div class="bg-[#1e293b] p-6 rounded-lg">
-          <h3 class="text-gray-400 text-sm font-medium">Ingresos del Día</h3>
-          <!-- ID AÑADIDO -->
+        <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+          <h3 class="text-[var(--color-text-secondary)] text-sm font-medium">Ingresos del Día</h3>
           <p id="ingresos-dia" class="text-3xl font-bold text-green-400 mt-2">$0.00</p>
         </div>
-        <div class="bg-[#1e293b] p-6 rounded-lg">
-          <h3 class="text-gray-400 text-sm font-medium">
-            Cuentas por Cobrar
-          </h3>
-          <!-- ID AÑADIDO -->
+        <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+          <h3 class="text-[var(--color-text-secondary)] text-sm font-medium">Cuentas por Cobrar</h3>
           <p id="cuentas-cobrar" class="text-3xl font-bold text-yellow-400 mt-2">$0.00</p>
         </div>
-        <div class="bg-[#1e293b] p-6 rounded-lg">
-          <h3 class="text-gray-400 text-sm font-medium">Gastos del Día</h3>
-          <!-- ID AÑADIDO -->
+        <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+          <h3 class="text-[var(--color-text-secondary)] text-sm font-medium">Gastos del Día</h3>
           <p id="gastos-dia" class="text-3xl font-bold text-red-400 mt-2">$0.00</p>
         </div>
-        <div class="bg-[#1e293b] p-6 rounded-lg">
-          <h3 class="text-gray-400 text-sm font-medium">Ventas del Día</h3>
-          <!-- ID AÑADIDO -->
-          <p id="ventas-dia" class="text-3xl font-bold text-white mt-2">0</p>
+        <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+          <h3 class="text-[var(--color-text-secondary)] text-sm font-medium">Ventas del Día</h3>
+          <p id="ventas-dia" class="text-3xl font-bold text-[var(--color-text-primary)] mt-2">0</p>
         </div>
       </div>
 
       <!-- Gráficas y Tablas -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Top 5 Productos -->
-        <div class="bg-[#1e293b] p-6 rounded-lg">
-          <h3 class="text-white font-semibold mb-4">
+        <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+          <h3 class="text-[var(--color-text-primary)] font-semibold mb-4">
             Top 5 Productos Más Vendidos
           </h3>
-          <!-- ID AÑADIDO -->
-          <div id="top-productos-container" class="text-gray-400">Cargando datos...</div>
+          <div id="top-productos-container" class="text-[var(--color-text-secondary)]">Cargando datos...</div>
         </div>
         <!-- Top 5 Clientes -->
-        <div class="bg-[#1e293b] p-6 rounded-lg">
-          <h3 class="text-white font-semibold mb-4">Top 5 Clientes</h3>
-          <!-- ID AÑADIDO -->
-          <div id="top-clientes-container" class="text-gray-400">Cargando datos...</div>
+        <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg">
+          <h3 class="text-[var(--color-text-primary)] font-semibold mb-4">Top 5 Clientes</h3>
+          <div id="top-clientes-container" class="text-[var(--color-text-secondary)]">Cargando datos...</div>
         </div>
       </div>
     </main>

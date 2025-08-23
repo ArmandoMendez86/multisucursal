@@ -11,8 +11,10 @@ class GastoController {
         $this->gastoModel = new Gasto();
     }
 
+    /**
+     * @deprecated Reemplazado por getGastosServerSide para la tabla principal.
+     */
     public function getAll() {
-        // ... (método sin cambios)
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']); return; }
         try {
@@ -22,8 +24,38 @@ class GastoController {
         } catch (Exception $e) { http_response_code(500); echo json_encode(['success' => false, 'message' => 'Error al obtener los gastos.']); }
     }
 
+    // --- INICIO: Nuevo método para Server-Side ---
+    public function getGastosServerSide()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
+            return;
+        }
+
+        $params = $_REQUEST;
+        $id_sucursal = $_SESSION['branch_id'];
+
+        try {
+            $result = $this->gastoModel->getAllServerSide($id_sucursal, $params);
+
+            $json_data = [
+                "draw"            => intval($params['draw']),
+                "recordsTotal"    => intval($result['recordsTotal']),
+                "recordsFiltered" => intval($result['recordsFiltered']),
+                "data"            => $result['data']
+            ];
+
+            echo json_encode($json_data);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
+        }
+    }
+    // --- FIN: Nuevo método para Server-Side ---
+
     public function create() {
-        // ... (método sin cambios)
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']); return; }
         $data = (array)json_decode(file_get_contents('php://input'));
@@ -37,9 +69,6 @@ class GastoController {
         } catch (Exception $e) { http_response_code(500); echo json_encode(['success' => false, 'message' => 'Error de base de datos.']); }
     }
 
-    /**
-     * --- NUEVO MÉTODO ---
-     */
     public function getById() {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']); return; }
@@ -52,9 +81,6 @@ class GastoController {
         else { http_response_code(404); echo json_encode(['success' => false, 'message' => 'Gasto no encontrado.']); }
     }
 
-    /**
-     * --- NUEVO MÉTODO ---
-     */
     public function update() {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']); return; }
@@ -67,9 +93,6 @@ class GastoController {
         else { http_response_code(500); echo json_encode(['success' => false, 'message' => 'No se pudo actualizar el gasto.']); }
     }
 
-    /**
-     * --- NUEVO MÉTODO ---
-     */
     public function delete() {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) { http_response_code(403); echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']); return; }
@@ -82,4 +105,3 @@ class GastoController {
         else { http_response_code(500); echo json_encode(['success' => false, 'message' => 'No se pudo eliminar el gasto.']); }
     }
 }
-?>
