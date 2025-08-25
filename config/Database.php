@@ -14,9 +14,9 @@ class Database
     private $conn; */
 
     private $host = 'localhost';
-    private $db_name = 'megapart_update';
-    private $username = 'megapart_update';
-    private $password = 'Update861215#-';
+    private $db_name = 'megapart_multi';
+    private $username = 'megapart_multi';
+    private $password = 'Multi861215#-';
     private $conn;
 
 
