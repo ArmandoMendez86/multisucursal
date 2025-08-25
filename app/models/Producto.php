@@ -18,7 +18,6 @@ class Producto
         $this->conn = $database->getConnection();
     }
 
-    // --- INICIO: Nuevo método para Server-Side ---
     public function getAllServerSide($id_sucursal, $params)
     {
         $baseQuery = "FROM productos p
@@ -30,33 +29,27 @@ class Producto
         $whereClause = "WHERE p.activo = 1";
         $bindings = [':id_sucursal' => $id_sucursal];
 
-        // Búsqueda (Filtro)
         if (!empty($params['search']['value'])) {
             $searchValue = '%' . $params['search']['value'] . '%';
             $whereClause .= " AND (p.sku LIKE :search_value OR p.nombre LIKE :search_value OR c.nombre LIKE :search_value OR pc.codigo_barras LIKE :search_value)";
             $bindings[':search_value'] = $searchValue;
         }
 
-        // Conteo total de registros (sin filtro de búsqueda)
         $stmtTotal = $this->conn->prepare("SELECT COUNT(DISTINCT p.id) " . $baseQuery . " WHERE p.activo = 1");
         $stmtTotal->execute([':id_sucursal' => $id_sucursal]);
         $recordsTotal = $stmtTotal->fetchColumn();
 
-        // Conteo de registros filtrados
         $stmtFiltered = $this->conn->prepare("SELECT COUNT(DISTINCT p.id) " . $baseQuery . " " . $whereClause);
         $stmtFiltered->execute($bindings);
         $recordsFiltered = $stmtFiltered->fetchColumn();
 
-        // Ordenamiento
         $columns = ['p.sku', 'p.nombre', 'pc.codigo_barras', 'c.nombre', null, 'p.precio_menudeo'];
         $orderClause = "ORDER BY " . $columns[$params['order'][0]['column']] . " " . $params['order'][0]['dir'];
 
-        // Paginación
         $limitClause = "LIMIT :limit OFFSET :offset";
         $bindings[':limit'] = intval($params['length']);
         $bindings[':offset'] = intval($params['start']);
 
-        // Consulta principal para obtener los datos
         $query = "SELECT 
                     p.id, p.sku, p.nombre, p.costo, p.precio_menudeo,
                     c.nombre as categoria_nombre,
@@ -69,7 +62,6 @@ class Producto
                   " . $limitClause;
 
         $stmtData = $this->conn->prepare($query);
-        // Usar bindValue para LIMIT y OFFSET porque necesitan ser enteros
         foreach ($bindings as $key => &$val) {
             $stmtData->bindValue($key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
         }
@@ -82,8 +74,6 @@ class Producto
             'data' => $data
         ];
     }
-    // --- FIN: Nuevo método para Server-Side ---
-
 
     public function getAllSimple()
     {
@@ -93,9 +83,6 @@ class Producto
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /**
-     * @deprecated Este método ya no se usa para la tabla principal. Se reemplaza por getAllServerSide.
-     */
     public function getAll($id_sucursal)
     {
         $query = "SELECT 
@@ -141,7 +128,7 @@ class Producto
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function create($data, $id_sucursal)
+    public function create($data, $id_sucursal_actual)
     {
         $this->conn->beginTransaction();
         try {
@@ -156,47 +143,51 @@ class Producto
             $stmt_producto->bindParam(':precio_menudeo', $data['precio_menudeo']);
             $stmt_producto->bindParam(':precio_mayoreo', $data['precio_mayoreo']);
 
-            if ($stmt_producto->execute()) {
-                $id_producto_nuevo = $this->conn->lastInsertId();
+            $stmt_producto->execute();
+            $id_producto_nuevo = $this->conn->lastInsertId();
 
-                if (!empty($data['codigos_barras']) && is_array($data['codigos_barras'])) {
-                    $query_codigos = "INSERT INTO " . $this->codes_table . " (id_producto, codigo_barras) VALUES (:id_producto, :codigo_barras)";
-                    $stmt_codigos = $this->conn->prepare($query_codigos);
-                    foreach ($data['codigos_barras'] as $codigo) {
-                        $codigo_limpio = trim($codigo);
-                        if (!empty($codigo_limpio)) {
-                            $stmt_codigos->bindParam(':id_producto', $id_producto_nuevo);
-                            $stmt_codigos->bindValue(':codigo_barras', $codigo_limpio);
-                            $stmt_codigos->execute();
-                        }
+            if (!empty($data['codigos_barras']) && is_array($data['codigos_barras'])) {
+                $query_codigos = "INSERT INTO " . $this->codes_table . " (id_producto, codigo_barras) VALUES (:id_producto, :codigo_barras)";
+                $stmt_codigos = $this->conn->prepare($query_codigos);
+                foreach ($data['codigos_barras'] as $codigo) {
+                    $codigo_limpio = trim($codigo);
+                    if (!empty($codigo_limpio)) {
+                        $stmt_codigos->bindParam(':id_producto', $id_producto_nuevo);
+                        $stmt_codigos->bindValue(':codigo_barras', $codigo_limpio);
+                        $stmt_codigos->execute();
                     }
                 }
-
-                $query_inventario = "INSERT INTO " . $this->inventory_table . " (id_producto, id_sucursal, stock, stock_minimo) VALUES (:id_producto, :id_sucursal, :stock, :stock_minimo)";
-                $stmt_inventario = $this->conn->prepare($query_inventario);
-                $stmt_inventario->bindParam(':id_producto', $id_producto_nuevo);
-                $stmt_inventario->bindParam(':id_sucursal', $id_sucursal);
-                $stmt_inventario->bindParam(':stock', $data['stock']);
-                $stmt_inventario->bindParam(':stock_minimo', $data['stock_minimo']);
-
-                if ($stmt_inventario->execute()) {
-                    $this->addInventoryMovement(
-                        $id_producto_nuevo,
-                        $id_sucursal,
-                        $_SESSION['user_id'],
-                        'entrada',
-                        $data['stock'],
-                        0,
-                        $data['stock'],
-                        'Creación de producto e inventario inicial',
-                        null
-                    );
-                    $this->conn->commit();
-                    return $id_producto_nuevo;
-                }
             }
-            $this->conn->rollBack();
-            return false;
+
+            // MODIFICACIÓN: Crear registro de stock para TODAS las sucursales
+            $sucursales = $this->getAllSucursalIds();
+            foreach ($sucursales as $id_sucursal) {
+                // El stock inicial del formulario se aplica solo a la sucursal actual. Las demás empiezan en 0.
+                $initial_stock = ($id_sucursal == $id_sucursal_actual) ? ($data['stock'] ?? 0) : 0;
+                $stock_minimo = ($id_sucursal == $id_sucursal_actual) ? ($data['stock_minimo'] ?? 0) : 0;
+                
+                $this->createInitialStockRecord($id_producto_nuevo, $id_sucursal, $initial_stock, $stock_minimo);
+            }
+
+            // Registrar el movimiento de inventario solo para la sucursal actual y si hay stock inicial
+            $stock_inicial_actual = $data['stock'] ?? 0;
+            if ($stock_inicial_actual > 0) {
+                $this->addInventoryMovement(
+                    $id_producto_nuevo,
+                    $id_sucursal_actual,
+                    $_SESSION['user_id'],
+                    'entrada',
+                    $stock_inicial_actual,
+                    0, // stock anterior es 0
+                    $stock_inicial_actual, // stock nuevo es el inicial
+                    'Inventario inicial por creación de producto',
+                    null
+                );
+            }
+
+            $this->conn->commit();
+            return $id_producto_nuevo;
+
         } catch (Exception $e) {
             $this->conn->rollBack();
             throw $e;
@@ -374,8 +365,8 @@ class Producto
             $stmt_update = $this->conn->prepare($query_update_stock);
             $stmt_update->bindParam(':id_producto', $id_producto, PDO::PARAM_INT);
             $stmt_update->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
-            $stmt_update->bindParam(':new_stock', $new_stock, PDO::PARAM_INT);
-            $stmt_update->bindParam(':new_stock_update', $new_stock, PDO::PARAM_INT);
+            $stmt_update->bindParam(':new_stock', $new_stock);
+            $stmt_update->bindParam(':new_stock_update', $new_stock);
             $stmt_update->execute();
 
             $this->addInventoryMovement(
@@ -407,9 +398,9 @@ class Producto
             $stmt->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
             $stmt->bindParam(':id_usuario', $id_usuario, PDO::PARAM_INT);
             $stmt->bindParam(':tipo_movimiento', $tipo_movimiento);
-            $stmt->bindParam(':cantidad', $cantidad, PDO::PARAM_INT);
-            $stmt->bindParam(':stock_anterior', $stock_anterior, PDO::PARAM_INT);
-            $stmt->bindParam(':stock_nuevo', $stock_nuevo, PDO::PARAM_INT);
+            $stmt->bindParam(':cantidad', $cantidad);
+            $stmt->bindParam(':stock_anterior', $stock_anterior);
+            $stmt->bindParam(':stock_nuevo', $stock_nuevo);
             $stmt->bindParam(':motivo', $motivo);
             $stmt->bindParam(':referencia_id', $referencia_id, PDO::PARAM_INT);
             return $stmt->execute();
@@ -502,7 +493,6 @@ class Producto
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // Añade este método a tu clase Producto en app/models/Producto.php
     public function searchSimpleByNameOrSku($term)
     {
         $query = "SELECT id, nombre, sku, precio_menudeo 
@@ -514,5 +504,26 @@ class Producto
         $stmt->bindParam(':term', $searchTerm);
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    private function getAllSucursalIds() {
+        $stmt = $this->conn->prepare("SELECT id FROM sucursales WHERE activo = 1");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+
+    public function createInitialStockRecord($id_producto, $id_sucursal, $stock = 0, $stock_minimo = 0)
+    {
+        $query = "INSERT INTO " . $this->inventory_table . " (id_producto, id_sucursal, stock, stock_minimo) 
+                  VALUES (:id_producto, :id_sucursal, :stock, :stock_minimo)
+                  ON DUPLICATE KEY UPDATE stock = VALUES(stock), stock_minimo = VALUES(stock_minimo)";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_producto', $id_producto, PDO::PARAM_INT);
+        $stmt->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
+        $stmt->bindParam(':stock', $stock);
+        $stmt->bindParam(':stock_minimo', $stock_minimo);
+        
+        return $stmt->execute();
     }
 }

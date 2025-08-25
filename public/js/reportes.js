@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       },
       columns: [
-        { data: 'fecha', title: 'Fecha' },
+        { data: 'fecha', "render": (data) => moment(data).format('DD/MM/YYYY, h:mm a'), title: 'Fecha' },
         { data: 'id', title: 'Ticket ID' },
         { data: 'cliente', title: 'Cliente' },
         { data: 'usuario', title: 'Vendedor' },

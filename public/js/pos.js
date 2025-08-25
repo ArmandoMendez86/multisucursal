@@ -56,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const fechaInput = document.getElementById('fecha_apertura');
   const modalErrorMessage = document.getElementById('modal-error-message');
   
-  let montoInicialAn; // Variable para la instancia de AutoNumeric
+  let montoInicialAn;
 
   let allProducts = [];
   const PRODUCTS_TO_SHOW = 20;
@@ -534,7 +534,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const item = cart.find((i) => i.id == id);
     if (!item) return;
     const product = allProducts.find((p) => p.id == id);
-    if (product && typeof product.stock === "number") {
+    if (product && typeof product.stock === "number" && !allowNegativeStock) {
       if (val > product.stock) val = product.stock;
     }
     item.quantity = val;
@@ -552,7 +552,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const item = cart.find((i) => i.id == id);
     if (!item) return;
     const product = allProducts.find((p) => p.id == id);
-    if (product && typeof product.stock === "number" && val > product.stock) {
+    if (product && typeof product.stock === "number" && val > product.stock && !allowNegativeStock) {
       val = product.stock;
       showToast("Stock máximo alcanzado en el carrito.", "error");
     }
@@ -565,26 +565,27 @@ document.addEventListener("DOMContentLoaded", function () {
     renderCart();
   }
 
+  // CORRECCIÓN: Se ajusta la lógica para leer el texto del botón (+ o -)
   function handleQuantityChange(event) {
     const button = event.target.closest(".quantity-change");
     if (!button) return;
     const productId = button.dataset.id;
-    const action = button.dataset.action;
+    const action = button.textContent.trim(); // '+' or '-'
     const cartItem = cart.find((item) => item.id == productId);
     if (!cartItem) return;
-    if (action === "increase") {
+
+    if (action === "+") {
       const product = allProducts.find((p) => p.id == productId);
-      if (product && cartItem.quantity < product.stock) {
+      if (allowNegativeStock || (product && cartItem.quantity < product.stock)) {
         cartItem.quantity++;
-      } else if (product) {
-        showToast("Stock máximo alcanzado en el carrito.", "error");
       } else {
-        showToast("Error: Información de producto no disponible para validar stock.", "error");
+        showToast("Stock máximo alcanzado en el carrito.", "error");
       }
-    } else if (action === "decrease") {
+    } else if (action === "-") {
       cartItem.quantity--;
-      if (cartItem.quantity === 0)
+      if (cartItem.quantity === 0) {
         cart = cart.filter((item) => item.id != productId);
+      }
     }
     renderCart();
   }
@@ -873,8 +874,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function handleSaveSale() {
-    if (cart.length === 0 || !selectedClient || selectedClient.id === 1) {
-      showToast("Debe seleccionar un cliente y tener productos en el carrito para guardar la venta.", "error");
+    if (cart.length === 0) {
+      showToast("Debe tener productos en el carrito para guardar la venta.", "error");
       return;
     }
     const saleData = {
@@ -908,7 +909,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function toggleSaveButton() {
-    saveSaleBtn.disabled = !(selectedClient && selectedClient.id !== 1 && cart.length > 0);
+    saveSaleBtn.disabled = cart.length === 0;
   }
 
   async function openPendingSalesModal() {
@@ -959,10 +960,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 <td class="py-2 px-4 text-sm">${sale.cliente_nombre}</td>
                 <td class="py-2 px-4 text-right text-sm font-mono">$${formatNumber(sale.total)}</td>
                 <td class="py-2 px-4 text-center">
-                    <div class="action-buttons-container">
-                        <button data-id="${sale.id}" class="load-sale-btn" title="Cargar Venta"><i class="fas fa-folder-open"></i></button>
-                        <a href="${BASE_URL}/generateQuote?id=${sale.id}" target="_blank" class="pdf-sale-btn" title="Ver Cotización PDF"><i class="fas fa-file-pdf"></i></a>
-                        <button data-id="${sale.id}" class="delete-sale-btn" title="Eliminar Venta"><i class="fas fa-trash-alt"></i></button>
+                    <div class="flex items-center justify-center space-x-3">
+                        <button data-id="${sale.id}" class="load-sale-btn text-blue-400 hover:text-blue-300" title="Cargar Venta"><i class="fas fa-folder-open"></i></button>
+                        <button data-id="${sale.id}" class="duplicate-sale-btn text-yellow-400 hover:text-yellow-300" title="Duplicar Venta"><i class="fas fa-copy"></i></button>
+                        <a href="${BASE_URL}/generateQuote?id=${sale.id}" target="_blank" class="pdf-sale-btn text-green-400 hover:text-green-300" title="Ver Cotización PDF"><i class="fas fa-file-pdf"></i></a>
+                        <button data-id="${sale.id}" class="delete-sale-btn text-red-400 hover:text-red-300" title="Eliminar Venta"><i class="fas fa-trash-alt"></i></button>
                     </div>
                 </td>`;
       pendingSalesTableBody.appendChild(tr);
@@ -1011,6 +1013,28 @@ document.addEventListener("DOMContentLoaded", function () {
     }));
     renderCart();
     showToast(`Venta #${currentSaleId} cargada en el POS.`, "info");
+  }
+  
+  async function handleDuplicateSale(saleId) {
+    const confirmed = await showConfirm("¿Deseas crear una copia de esta venta? Se creará una nueva venta pendiente con los mismos productos.");
+    if (!confirmed) return;
+
+    try {
+        const response = await fetch(`${BASE_URL}/duplicateSale`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_venta: saleId })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast(`Venta #${saleId} duplicada. Nuevo folio: #${result.new_sale_id}`, 'success');
+            openPendingSalesModal();
+        } else {
+            showToast(result.message, 'error');
+        }
+    } catch (error) {
+        showToast('Error de conexión al duplicar la venta.', 'error');
+    }
   }
 
   async function handleDeletePendingSale(saleId) {
@@ -1324,8 +1348,11 @@ document.addEventListener("DOMContentLoaded", function () {
   cartItemsContainer.addEventListener("click", function (event) {
     const quantityButton = event.target.closest(".quantity-change");
     const removeButton = event.target.closest(".remove-item-btn");
-    if (quantityButton) handleQuantityChange(event);
-    else if (removeButton) removeProductFromCart(removeButton.dataset.id);
+    if (quantityButton) {
+        handleQuantityChange(event);
+    } else if (removeButton) {
+        removeProductFromCart(removeButton.dataset.id);
+    }
   });
   cartItemsContainer.addEventListener("input", handleQuantityInput);
   cartItemsContainer.addEventListener("change", handleQuantityCommit);
@@ -1385,8 +1412,10 @@ document.addEventListener("DOMContentLoaded", function () {
   pendingSalesTableBody.addEventListener("click", function (event) {
     const loadButton = event.target.closest(".load-sale-btn");
     const deleteButton = event.target.closest(".delete-sale-btn");
+    const duplicateButton = event.target.closest(".duplicate-sale-btn");
     if (loadButton) loadSale(loadButton.dataset.id);
     else if (deleteButton) handleDeletePendingSale(deleteButton.dataset.id);
+    else if (duplicateButton) handleDuplicateSale(duplicateButton.dataset.id);
   });
 
   addNewClientBtn.addEventListener("click", showAddClientModal);

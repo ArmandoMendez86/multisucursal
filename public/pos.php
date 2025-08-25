@@ -1,4 +1,5 @@
 <?php
+// Archivo: /public/views/pos.php
 require_once __DIR__ . '/../parciales/verificar_sesion.php';
 ?>
 <!DOCTYPE html>
@@ -22,8 +23,6 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       font-size: 0.65rem;
       line-height: 0.8rem;
     }
-
-    /* --- ESTILOS PERSONALIZADOS CON VARIABLES CSS PARA EL TEMA --- */
     
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
@@ -67,7 +66,6 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     .price-type-btn.active-price-type { background-color: var(--color-accent); color: white; }
     .price-type-btn:not(.active-price-type):hover { background-color: var(--color-border); }
 
-    /* Estilos para Select2 (ya usan variables) */
     .select2-container--default .select2-selection--single { background-color: var(--color-bg-secondary) !important; border: 1px solid var(--color-border) !important; }
     .select2-container--default .select2-selection--single .select2-selection__rendered { color: var(--color-text-primary) !important; }
     .select2-container--default .select2-selection--single .select2-selection__arrow b { border-color: var(--color-text-secondary) transparent transparent transparent !important; }
@@ -78,7 +76,6 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     .select2-search--dropdown .select2-search__field { background-color: var(--color-bg-primary) !important; border: 1px solid var(--color-border) !important; color: var(--color-text-primary) !important; }
     .select2-results__message { color: var(--color-text-secondary) !important; }
 
-    /* Toggle Switch */
     #toggle-negative-stock:checked + .block { background-color: #22c55e; }
     #toggle-negative-stock:checked ~ .dot, #toggle-negative-stock:checked ~ div > .dot { transform: translateX(1rem); }
   </style>
@@ -344,7 +341,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                 <th class="py-2 px-4 text-left">Fecha</th>
                 <th class="py-2 px-4 text-left">Cliente</th>
                 <th class="py-2 px-4 text-right">Total</th>
-                <th class="py-2 px-4 text-center w-40">Acciones</th>
+                <th class="py-2 px-4 text-center w-48">Acciones</th> <!-- Ancho ajustado -->
               </tr>
             </thead>
             <tbody id="pending-sales-table-body" class="divide-y divide-[var(--color-border)]">

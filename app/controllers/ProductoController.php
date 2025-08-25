@@ -12,8 +12,6 @@ class ProductoController
         $this->productoModel = new Producto();
     }
 
-    // ... (getProductForPOS, getByBarcode, create, etc. se mantienen igual)
-
     public function getProductForPOS()
     {
         header('Content-Type: application/json');
@@ -48,9 +46,6 @@ class ProductoController
         }
     }
 
-    /**
-     * @deprecated Este método ya no se usa para la tabla principal. Se reemplaza por getProductsServerSide.
-     */
     public function getAll()
     {
         header('Content-Type: application/json');
@@ -69,7 +64,6 @@ class ProductoController
         }
     }
 
-    // --- INICIO: Nuevo método para Server-Side ---
     public function getProductsServerSide()
     {
         header('Content-Type: application/json');
@@ -95,11 +89,9 @@ class ProductoController
             echo json_encode($json_data);
         } catch (Exception $e) {
             http_response_code(500);
-            // Para depuración, es útil ver el error. En producción, se puede cambiar por un mensaje genérico.
             echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
         }
     }
-    // --- FIN: Nuevo método para Server-Side ---
 
     public function getByBarcode()
     {
@@ -130,30 +122,35 @@ class ProductoController
     public function create()
     {
         header('Content-Type: application/json');
-        if (!isset($_SESSION['user_id'])) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
-            return;
-        }
-        $data = (array) json_decode(file_get_contents('php://input'), true);
-        if (empty($data['nombre']) || empty($data['sku'])) {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (empty($data['nombre']) || !isset($data['precio_menudeo'])) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Datos incompletos.']);
+            echo json_encode(['success' => false, 'message' => 'Nombre y precio menudeo son requeridos.']);
             return;
         }
+
         try {
-            $id_sucursal = $_SESSION['branch_id'];
-            $newProductId = $this->productoModel->create($data, $id_sucursal);
+            $id_sucursal_actual = $_SESSION['branch_id'];
+            
+            // MODIFICACIÓN: Se pasa la sucursal actual al modelo. 
+            // El modelo ahora se encarga de crear el producto en el maestro y de añadirlo a TODAS las sucursales.
+            $newProductId = $this->productoModel->create($data, $id_sucursal_actual);
+
             if ($newProductId) {
                 http_response_code(201);
-                echo json_encode(['success' => true, 'message' => 'Producto creado y asignado a sucursal.']);
+                echo json_encode(['success' => true, 'message' => 'Producto creado y asignado a todas las sucursales.', 'id' => $newProductId]);
             } else {
                 http_response_code(500);
                 echo json_encode(['success' => false, 'message' => 'No se pudo crear el producto.']);
             }
         } catch (Exception $e) {
             http_response_code(500);
-            echo json_encode(['success' => false, 'message' => 'Error al crear el producto: ' . $e->getMessage()]);
+            if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'sku') !== false) {
+                 echo json_encode(['success' => false, 'message' => 'Error: El SKU ingresado ya existe para otro producto.']);
+            } else {
+                 echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
+            }
         }
     }
 
@@ -257,7 +254,7 @@ class ProductoController
         $motivo = $data['motivo'] ?? 'Ajuste manual';
         $stock_anterior = $data['stock_anterior'] ?? 0;
 
-        if (is_null($id_producto) || is_null($new_stock) || !is_numeric($new_stock) || $new_stock < 0) {
+        if (is_null($id_producto) || is_null($new_stock) || !is_numeric($new_stock)) {
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Datos de ajuste de stock incompletos o inválidos.']);
             return;

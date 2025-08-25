@@ -131,7 +131,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                                 <th class="py-3 px-6 text-center">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody class="text-sm">
+                        <tbody class="text-xs">
                             <!-- El contenido se carga vía server-side por DataTables -->
                         </tbody>
                     </table>
@@ -178,6 +178,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     </div>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.4.1/js/dataTables.buttons.min.js"></script>
 

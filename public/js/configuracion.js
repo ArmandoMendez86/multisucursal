@@ -1,98 +1,143 @@
 // Archivo: /public/js/configuracion.js
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // --- Referencias a elementos del DOM ---
     const configForm = document.getElementById('config-form');
     const formFields = ['nombre', 'direccion', 'telefono', 'email', 'logo_url'];
     const saveButton = document.getElementById('save-config-btn');
     const adminMessage = document.getElementById('admin-only-message');
 
-    // --- Lógica de la API ---
+    const fileInput = document.getElementById('logo');
+    const logoUrlInput = document.getElementById('logo_url');
+    const preview = document.getElementById('logo-preview');
 
     /**
-     * Obtiene la configuración actual de la sucursal y la muestra en el formulario.
+     * Sube el archivo del logo al servidor.
+     * @param {File} file - El archivo de imagen a subir.
+     * @returns {Promise<string>} La URL relativa del logo subido.
+     */
+    async function uploadLogo(file) {
+        const fd = new FormData();
+        fd.append('logo', file);
+        // Llama al endpoint para subir el logo
+        const resp = await fetch(`${BASE_URL}/uploadBranchLogo`, { method: 'POST', body: fd });
+        const result = await resp.json();
+        if (!result.success) {
+            throw new Error(result.message || 'Error al subir el logo');
+        }
+        return result.url; // Retorna la nueva URL
+    }
+
+    // --- Event Listener para el input de archivo ---
+    if (fileInput) {
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return; // Si no se selecciona archivo, no hacer nada
+
+            try {
+                if (saveButton) saveButton.disabled = true; // Deshabilitar botón mientras sube
+                
+                // 1. Subir el logo y obtener la nueva URL
+                const url = await uploadLogo(file);
+                
+                // 2. Actualizar el campo de texto oculto con la nueva URL
+                logoUrlInput.value = url;
+                
+                // 3. Construir la ruta completa para mostrar la imagen
+                const fullUrl = '/multi-sucursal/public' + url;
+                
+                // 4. Actualizar la vista previa en el formulario
+                if (preview) preview.src = fullUrl;
+
+                // 5. MODIFICACIÓN: Actualizar el logo en la barra de navegación
+                const sidebarLogo = document.getElementById('sidebar-logo');
+                if (sidebarLogo) {
+                    sidebarLogo.src = fullUrl;
+                }
+                
+                if (typeof showToast === 'function') showToast('Logo actualizado con éxito.', 'success');
+
+            } catch (err) {
+                if (typeof showToast === 'function') showToast(err.message || 'Error al subir el logo', 'error');
+            } finally {
+                if (saveButton) saveButton.disabled = false; // Rehabilitar el botón
+            }
+        });
+    }
+
+    /**
+     * Obtiene la configuración actual de la sucursal desde el servidor.
      */
     async function fetchBranchConfig() {
         try {
             const response = await fetch(`${BASE_URL}/getBranchConfig`);
             const result = await response.json();
-
             if (result.success) {
-                const configData = result.data;
-                // Poblar el formulario con los datos recibidos
-                formFields.forEach(field => {
+                const cfg = result.data || {};
+                // Rellenar los campos del formulario con los datos obtenidos
+                formFields.forEach((field) => {
                     const input = document.getElementById(field);
-                    if (input) {
-                        input.value = configData[field] || '';
-                    }
+                    if (input) input.value = cfg[field] || '';
                 });
-            } else {
-                showToast(result.message, 'error');
-            }
-        } catch (error) {
-            showToast('No se pudo cargar la configuración de la sucursal.', 'error');
-        }
-    }
-
-    /**
-     * Envía los datos del formulario a la API para actualizar la configuración.
-     * @param {Event} event - El evento de submit del formulario.
-     */
-    async function handleFormSubmit(event) {
-        event.preventDefault();
-        const formData = new FormData(configForm);
-        const configData = Object.fromEntries(formData.entries());
-
-        try {
-            const response = await fetch(`${BASE_URL}/updateBranchConfig`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(configData)
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                showToast('Configuración guardada exitosamente.', 'success');
-                // Actualizar el nombre de la sucursal en la sidebar
-                const sucursalNombreElem = document.getElementById('sucursal-nombre');
-                if (sucursalNombreElem) {
-                    sucursalNombreElem.textContent = configData.nombre;
+                // Actualizar la vista previa del logo si existe una URL
+                if (cfg.logo_url && preview) {
+                    preview.src = '/multi-sucursal/public' + cfg.logo_url;
                 }
             } else {
-                showToast(result.message, 'error');
+                if (typeof showToast === 'function') showToast(result.message, 'error');
             }
-        } catch (error) {
-            showToast('No se pudo conectar con el servidor para guardar los cambios.', 'error');
+        } catch {
+            if (typeof showToast === 'function') showToast('No se pudo cargar la configuración.', 'error');
         }
     }
-    
+
     /**
-     * Habilita o deshabilita el formulario según el rol del usuario.
+     * Maneja el envío del formulario para guardar los cambios.
+     * @param {Event} e - El evento de envío del formulario.
      */
-    function checkUserRole() {
-        // Esta función asume que dashboard.js ya ha guardado el rol en sessionStorage
-        // o que podemos obtenerlo de alguna manera. Por simplicidad, lo haremos así.
-        // Una mejor forma sería que checkSession en dashboard.js devuelva los datos.
-        
-        // Simulamos obtener el rol. En una app real, esto vendría de la sesión.
-        const userRole = sessionStorage.getItem('user_role') || 'Vendedor'; // Valor por defecto
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const payload = {};
+        // Recolectar los datos del formulario
+        formFields.forEach((f) => { 
+            const el = document.getElementById(f); 
+            if (el) payload[f] = el.value; 
+        });
 
-        if (userRole !== 'Administrador') {
-            // Deshabilitar todos los campos del formulario y el botón
-            formFields.forEach(field => {
-                const input = document.getElementById(field);
-                if(input) input.disabled = true;
+        try {
+            if (saveButton) saveButton.disabled = true;
+            const resp = await fetch(`${BASE_URL}/updateBranchConfig`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
             });
-            if(saveButton) saveButton.disabled = true;
-            if(adminMessage) adminMessage.classList.remove('hidden');
+            const result = await resp.json();
+            if (result.success) {
+                if (typeof showToast === 'function') showToast('Cambios guardados.', 'success');
+                // Actualizar el nombre de la sucursal en la barra lateral
+                const elem = document.getElementById('sucursal-nombre');
+                if (elem && payload.nombre) elem.textContent = payload.nombre;
+                
+                // Si la URL del logo cambió, actualizar las imágenes
+                if (payload.logo_url) {
+                    const fullUrl = '/multi-sucursal/public' + payload.logo_url;
+                    if (preview) preview.src = fullUrl;
+                    const sidebarLogo = document.getElementById('sidebar-logo');
+                    if (sidebarLogo) sidebarLogo.src = fullUrl;
+                }
+            } else {
+                if (typeof showToast === 'function') showToast(result.message, 'error');
+            }
+        } catch {
+            if (typeof showToast === 'function') showToast('No se pudo guardar la configuración.', 'error');
+        } finally {
+            if (saveButton) saveButton.disabled = false;
         }
     }
-    
-    // --- Asignación de Eventos ---
-    configForm.addEventListener('submit', handleFormSubmit);
 
-    // --- Carga Inicial ---
+    // Asignar el manejador de eventos al formulario
+    if (configForm) configForm.addEventListener('submit', handleFormSubmit);
+    
+    // Cargar la configuración inicial al entrar a la página
     fetchBranchConfig();
-    // checkUserRole(); // Descomentar cuando la lógica de roles esté en dashboard.js
 });

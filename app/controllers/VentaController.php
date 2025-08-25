@@ -2,30 +2,26 @@
 // Archivo: /app/controllers/VentaController.php
 
 require_once __DIR__ . '/../models/Venta.php';
-require_once __DIR__ . '/../models/Cliente.php'; // Include Cliente model
-require_once __DIR__ . '/../models/Producto.php'; // Include Producto model for inventory movements
-require_once __DIR__ . '/../../config/Database.php'; // Include Database class
+require_once __DIR__ . '/../models/Cliente.php';
+require_once __DIR__ . '/../models/Producto.php';
+require_once __DIR__ . '/../../config/Database.php';
 
 class VentaController
 {
     private $ventaModel;
     private $clienteModel;
     private $productoModel;
-    private $conn; // Declare connection property
+    private $conn;
 
     public function __construct()
     {
         $this->ventaModel = new Venta();
         $this->clienteModel = new Cliente();
         $this->productoModel = new Producto();
-        $database = Database::getInstance(); // Get database instance
-        $this->conn = $database->getConnection(); // Get the PDO connection
+        $database = Database::getInstance();
+        $this->conn = $database->getConnection();
     }
 
-    /**
-     * Processes a sale that is being paid at the moment ('Completada' status).
-     * Can also finalize a pending sale.
-     */
     public function processSale()
     {
         header('Content-Type: application/json');
@@ -56,7 +52,6 @@ class VentaController
             }
         }
 
-        // Validate credit if 'Crédito' payment method is used
         if ($creditPaymentAmount > 0) {
             $cliente = $this->clienteModel->getById($data['id_cliente']);
             if (!$cliente || $cliente['tiene_credito'] == 0) {
@@ -73,12 +68,10 @@ class VentaController
         }
 
         try {
-            $this->conn->beginTransaction(); // Start transaction
+            $this->conn->beginTransaction();
 
-            // ✅ 1. Leemos el permiso enviado desde el frontend.
             $allowNegativeStock = !empty($data['allow_negative_stock']);
 
-            // 2. Verificamos el stock SÓLO SI NO está permitida la venta negativa.
             if (!$allowNegativeStock) {
                 foreach ($data['cart'] as $item) {
                     $product = $this->productoModel->getById($item['id'], $data['id_sucursal']);
@@ -90,7 +83,6 @@ class VentaController
                 }
             }
 
-            // 3. El resto del proceso de guardado y actualización de stock continúa sin cambios.
             if (isset($data['id_venta']) && !empty($data['id_venta'])) {
                 $this->ventaModel->update($data);
                 $saleId = $data['id_venta'];
@@ -130,20 +122,16 @@ class VentaController
                 );
             }
 
-            $this->conn->commit(); // Commit transaction
+            $this->conn->commit();
             http_response_code(201);
             echo json_encode(['success' => true, 'message' => $message, 'id_venta' => $saleId]);
         } catch (Exception $e) {
-            $this->conn->rollBack(); // Rollback on error
+            $this->conn->rollBack();
             http_response_code(409);
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
     }
 
-    /**
-     * Saves a sale as 'Pendiente' without processing payment or affecting stock.
-     * Or updates an existing sale as 'Pendiente'.
-     */
     public function saveSale()
     {
         header('Content-Type: application/json');
@@ -155,9 +143,10 @@ class VentaController
 
         $data = json_decode(file_get_contents('php://input'), true);
 
-        if (empty($data['cart']) || !isset($data['total']) || empty($data['id_cliente']) || $data['id_cliente'] == 1) {
+        // MODIFICACIÓN: Se elimina la validación que impedía guardar para "Público en General" (id_cliente == 1)
+        if (empty($data['cart']) || !isset($data['total']) || empty($data['id_cliente'])) {
             http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Para guardar una venta, debe seleccionar un cliente específico y tener productos en el carrito.']);
+            echo json_encode(['success' => false, 'message' => 'Para guardar una venta, debe seleccionar un cliente y tener productos en el carrito.']);
             return;
         }
 
@@ -184,9 +173,42 @@ class VentaController
         }
     }
 
-    /**
-     * Returns a list of sales with 'Pendiente' status for the current branch.
-     */
+    // NUEVA FUNCIÓN: Para duplicar una venta existente.
+    public function duplicateSale()
+    {
+        header('Content-Type: application/json');
+        if (!isset($_SESSION['user_id'])) {
+            http_response_code(403);
+            echo json_encode(['success' => false, 'message' => 'Acceso no autorizado.']);
+            return;
+        }
+
+        $data = json_decode(file_get_contents('php://input'), true);
+        if (empty($data['id_venta'])) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => 'ID de venta a duplicar no proporcionado.']);
+            return;
+        }
+
+        try {
+            $id_venta_original = $data['id_venta'];
+            $id_usuario = $_SESSION['user_id'];
+            $id_sucursal = $_SESSION['branch_id'];
+
+            $newSaleId = $this->ventaModel->duplicateById($id_venta_original, $id_usuario, $id_sucursal);
+
+            if ($newSaleId) {
+                echo json_encode(['success' => true, 'message' => 'Venta duplicada exitosamente.', 'new_sale_id' => $newSaleId]);
+            } else {
+                http_response_code(500);
+                echo json_encode(['success' => false, 'message' => 'No se pudo duplicar la venta.']);
+            }
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Error del servidor al duplicar la venta: ' . $e->getMessage()]);
+        }
+    }
+
     public function listPendingSales()
     {
         header('Content-Type: application/json');
@@ -206,9 +228,6 @@ class VentaController
         }
     }
 
-    /**
-     * Returns the complete data of a specific sale to load it into the POS.
-     */
     public function loadSale()
     {
         header('Content-Type: application/json');
@@ -238,9 +257,6 @@ class VentaController
         }
     }
 
-    /**
-     * Gets the details of a sale for ticket printing.
-     */
     public function getTicketDetails()
     {
         header('Content-Type: application/json');
@@ -271,9 +287,6 @@ class VentaController
         }
     }
 
-    /**
-     * Handles the request to delete a pending sale.
-     */
     public function deletePendingSale()
     {
         header('Content-Type: application/json');
@@ -306,12 +319,8 @@ class VentaController
         }
     }
 
-    /**
-     * Generates an HTML view of the quote ready for PDF printing.
-     */
     public function generateQuote()
     {
-        // We don't send JSON, but HTML, so we don't set header.
         if (!isset($_SESSION['user_id'])) {
             die('Acceso no autorizado.');
         }
@@ -324,7 +333,6 @@ class VentaController
         try {
             $data = $this->ventaModel->getDetailsForTicket($id_venta);
             if ($data && $data['venta']) {
-                // Include the template and pass the data
                 include __DIR__ . '/../views/cotizacion_template.php';
             } else {
                 die('Cotización no encontrada.');
@@ -334,10 +342,6 @@ class VentaController
         }
     }
 
-    /**
-     * Handles the request to cancel a completed sale.
-     * Reverts stock and adjusts client credit.
-     */
     public function cancelSale()
     {
         header('Content-Type: application/json');

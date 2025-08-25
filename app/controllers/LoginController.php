@@ -40,13 +40,14 @@ class LoginController
                 $_SESSION['user_name'] = $user->nombre;
                 $_SESSION['rol'] = $user->rol;
                 $_SESSION['branch_id'] = $user->id_sucursal;
-
+                
                 // --- LÓGICA AÑADIDA ---
                 // 2. Obtenemos el nombre de la sucursal y lo guardamos en la sesión.
                 $sucursalModel = new Sucursal();
                 $sucursal = $sucursalModel->getById($user->id_sucursal);
                 $nombreSucursal = $sucursal ? $sucursal['nombre'] : 'Sucursal Desconocida';
                 $_SESSION['branch_name'] = $nombreSucursal;
+                $_SESSION['logo_url'] = $sucursal['logo_url'];
                 // --- FIN LÓGICA AÑADIDA ---
 
                 $userData = [

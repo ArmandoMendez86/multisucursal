@@ -54,21 +54,33 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 ) {
     require_once __DIR__ . '/../app/controllers/ClienteController.php';
     $controller = new ClienteController();
-} elseif (in_array($action, ['processSale', 'saveSale', 'getTicketDetails', 'listPendingSales', 'loadSale', 'deletePendingSale', 'generateQuote', 'cancelSale'])) {
+} elseif (in_array($action, [
+    'processSale', 
+    'saveSale', 
+    'getTicketDetails', 
+    'listPendingSales', 
+    'loadSale', 
+    'deletePendingSale', 
+    'generateQuote', 
+    'cancelSale', 
+    'duplicateSale' // <-- RUTA AÑADIDA
+])) {
     require_once __DIR__ . '/../app/controllers/VentaController.php';
     $controller = new VentaController();
-} elseif (in_array($action, ['getExpenses', 'getGastosServerSide', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) { // <-- RUTA AÑADIDA
+} elseif (in_array($action, ['getExpenses', 'getGastosServerSide', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) {
     require_once __DIR__ . '/../app/controllers/GastoController.php';
     $controller = new GastoController();
-} elseif (in_array($action, [
-    'getSalesReport',
-    'getSalesReportPaginated',
-    'getCashCut',
-    'getDetailedExpenses',
-    'getDetailedClientPayments',
-    'getGlobalSalesReport',
-    'getGlobalVentasServerSide'
-])) {
+} elseif (
+    in_array($action, [
+        'getSalesReport',
+        'getSalesReportPaginated',
+        'getCashCut',
+        'getDetailedExpenses',
+        'getDetailedClientPayments',
+        'getGlobalSalesReport',
+        'getGlobalVentasServerSide'
+    ])
+) {
     require_once __DIR__ . '/../app/controllers/ReporteController.php';
     $controller = new ReporteController();
 } elseif (in_array($action, ['checkApertura', 'registrarApertura', 'getMontoApertura'])) {
@@ -89,7 +101,7 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 ) {
     require_once __DIR__ . '/../app/controllers/AdminController.php';
     $controller = new AdminController();
-} elseif (in_array($action, ['getPrinterConfig', 'updatePrinterConfig', 'getBranchConfig', 'updateBranchConfig'])) {
+} elseif (in_array($action, ['getPrinterConfig', 'updatePrinterConfig', 'getBranchConfig', 'updateBranchConfig', 'uploadBranchLogo'])) {
     require_once __DIR__ . '/../app/controllers/ConfiguracionController.php';
     $controller = new ConfiguracionController();
 } elseif (in_array($action, ['getPrintPrefs', 'updatePrintPrefs'])) {
@@ -216,10 +228,10 @@ switch ($action) {
     case 'saveSpecialClientPrice':
         $controller->saveSpecialClientPrice();
         break;
-   /*  case 'getProductosParaPreciosEspeciales':
+    case 'getProductosParaPreciosEspeciales':
         $controller->getProductosParaPreciosEspeciales();
-        break; */
-    case 'searchProductsSimple': // <-- CASE NUEVO
+        break;
+    case 'searchProductsSimple':
         $controller->searchProductsSimple();
         break;
     case 'registrarAbono':
@@ -235,6 +247,9 @@ switch ($action) {
         break;
     case 'saveSale':
         $controller->saveSale();
+        break;
+    case 'duplicateSale': // <-- CASE AÑADIDO
+        $controller->duplicateSale();
         break;
     case 'getTicketDetails':
         $controller->getTicketDetails();
@@ -261,7 +276,7 @@ switch ($action) {
         break;
     case 'getGastosServerSide':
         $controller->getGastosServerSide();
-        break; // <-- CASE AÑADIDO
+        break;
     case 'createExpense':
         $controller->create();
         break;
@@ -294,7 +309,6 @@ switch ($action) {
     case 'getGlobalSalesReport':
         $controller->getVentasGlobales();
         break;
-
     case 'getGlobalVentasServerSide':
         $controller->getGlobalVentasServerSide();
         break;
@@ -358,6 +372,10 @@ switch ($action) {
     case 'updatePrintPrefs':
         $controller->updatePrintPrefs();
         break;
+    case 'uploadBranchLogo':
+        $controller->uploadBranchLogo();
+        break;
+
 
     default:
         if (isset($controller)) {

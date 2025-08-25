@@ -246,7 +246,7 @@ class ClienteController
         echo json_encode(['results' => $results]);
     }
 
-    /* public function getProductosParaPreciosEspeciales()
+    public function getProductosParaPreciosEspeciales()
     {
         header('Content-Type: application/json');
         if (!isset($_SESSION['user_id'])) {
@@ -261,7 +261,7 @@ class ClienteController
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Error al obtener los productos.']);
         }
-    } */
+    }
 
     public function searchProductsSimple()
     {

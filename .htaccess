@@ -1,8 +1,8 @@
 
 RewriteEngine On
 
-#RewriteBase /multi-sucursal/
-RewriteBase /
+RewriteBase /multi-sucursal/
+#RewriteBase /
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
