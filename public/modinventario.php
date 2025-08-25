@@ -272,13 +272,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         .dropzone .dz-preview:hover .dz-image:after {
             opacity: 1;
         }
-    
-/* --- Centro códigos de barras y descripción --- */
-#barcode-svg { display:block; margin-left:auto; margin-right:auto; }
-#barcode-desc { text-align:center; }
-#print-barcode-btn { display:block; margin-left:auto; margin-right:auto; }
-
-</style>
+    </style>
 </head>
 
 <body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]"

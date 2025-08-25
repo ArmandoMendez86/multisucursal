@@ -1,6 +1,38 @@
 <?php
 // Archivo: /public/index.php
 
+// --- INICIO DE LA SOLUCIÓN ---
+// Esta sección intercepta las peticiones a archivos estáticos (imágenes, CSS, JS)
+// y los sirve directamente, evitando que tu router de PHP los procese.
+
+$requested_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+
+// Comprobamos si la URL es para una de nuestras carpetas de assets
+if (preg_match('/^\/multi-sucursal\/public\/(img|css|js)\//', $requested_uri)) {
+    
+    // Construimos la ruta física del archivo en el servidor
+    $file_path = __DIR__ . str_replace('/multi-sucursal/public', '', $requested_uri);
+
+    // Si el archivo realmente existe en el disco...
+    if (file_exists($file_path) && is_file($file_path)) {
+        
+        // Obtenemos el tipo de contenido (ej: 'image/png')
+        $mime_type = mime_content_type($file_path);
+        
+        if ($mime_type) {
+            // Enviamos la cabecera correcta al navegador
+            header('Content-Type: ' . $mime_type);
+            // Enviamos el contenido del archivo
+            readfile($file_path);
+            // Detenemos el script para que tu enrutador no intente procesar la imagen
+            exit;
+        }
+    }
+}
+// --- FIN DE LA SOLUCIÓN ---
+
+
+// --- INICIO DE TU CÓDIGO ORIGINAL (INTACTO) ---
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
@@ -29,7 +61,9 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'adjustStock',
         'getInventoryMovements',
         'getStockAcrossBranches',
-        'searchProducts'
+        'searchProducts',
+        'uploadProductImage',
+        'deleteProductImage'
     ])
 ) {
     require_once __DIR__ . '/../app/controllers/ProductoController.php';
@@ -54,17 +88,19 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
 ) {
     require_once __DIR__ . '/../app/controllers/ClienteController.php';
     $controller = new ClienteController();
-} elseif (in_array($action, [
-    'processSale', 
-    'saveSale', 
-    'getTicketDetails', 
-    'listPendingSales', 
-    'loadSale', 
-    'deletePendingSale', 
-    'generateQuote', 
-    'cancelSale', 
-    'duplicateSale' // <-- RUTA AÑADIDA
-])) {
+} elseif (
+    in_array($action, [
+        'processSale',
+        'saveSale',
+        'getTicketDetails',
+        'listPendingSales',
+        'loadSale',
+        'deletePendingSale',
+        'generateQuote',
+        'cancelSale',
+        'duplicateSale' // <-- RUTA AÑADIDA
+    ])
+) {
     require_once __DIR__ . '/../app/controllers/VentaController.php';
     $controller = new VentaController();
 } elseif (in_array($action, ['getExpenses', 'getGastosServerSide', 'createExpense', 'getExpense', 'updateExpense', 'deleteExpense'])) {
@@ -178,6 +214,12 @@ switch ($action) {
         break;
     case 'searchProducts':
         $controller->searchProducts();
+        break;
+    case 'uploadProductImage':
+        $controller->uploadProductImage();
+        break;
+    case 'deleteProductImage':
+        $controller->deleteProductImage();
         break;
 
     // --- RUTAS DE CATÁLOGOS ---
@@ -383,6 +425,8 @@ switch ($action) {
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Acción no definida en el enrutador.']);
         } else {
+            // Si no se encuentra un controlador para la acción, se puede mostrar una página 404
+            // o simplemente terminar. Por ahora, terminamos con un error genérico.
             header('Content-Type: application/json');
             http_response_code(404);
             echo json_encode(['success' => false, 'message' => 'Endpoint no encontrado.']);

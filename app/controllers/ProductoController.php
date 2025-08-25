@@ -12,6 +12,60 @@ class ProductoController
         $this->productoModel = new Producto();
     }
 
+    public function uploadProductImage()
+    {
+        header('Content-Type: text/plain');
+
+        // Se busca 'product_images' que es lo que manda FilePond.
+        if (!isset($_FILES['product_images'])) {
+            http_response_code(400);
+            echo "Error: No se recibió el campo 'product_images'.";
+            return;
+        }
+
+        $file = $_FILES['product_images'];
+        $tempPath = $file['tmp_name'];
+
+        $uploadDir = __DIR__ . '/../../public/img/temp/';
+        if (!is_dir($uploadDir)) {
+            if (!mkdir($uploadDir, 0775, true)) {
+                http_response_code(500);
+                echo "Error: No se pudo crear el directorio temporal.";
+                return;
+            }
+        }
+
+        // Se sanea el nombre del archivo para mayor seguridad.
+        $safeName = preg_replace("/[^a-zA-Z0-9\._-]/", "", basename($file['name']));
+        $fileName = uniqid('prod_') . '_' . $safeName;
+        $destPath = $uploadDir . $fileName;
+
+        if (move_uploaded_file($tempPath, $destPath)) {
+            http_response_code(200);
+            echo $fileName;
+        } else {
+            http_response_code(500);
+            echo "Error al mover el archivo subido.";
+        }
+    }
+
+    public function deleteProductImage()
+    {
+        $fileName = file_get_contents('php://input');
+        if (empty($fileName)) {
+            http_response_code(400);
+            return;
+        }
+
+        $filePath = __DIR__ . '/../../public/img/temp/' . basename($fileName);
+
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+
+        http_response_code(204); // No Content
+    }
+
     public function getProductForPOS()
     {
         header('Content-Type: application/json');
@@ -132,9 +186,6 @@ class ProductoController
 
         try {
             $id_sucursal_actual = $_SESSION['branch_id'];
-            
-            // MODIFICACIÓN: Se pasa la sucursal actual al modelo. 
-            // El modelo ahora se encarga de crear el producto en el maestro y de añadirlo a TODAS las sucursales.
             $newProductId = $this->productoModel->create($data, $id_sucursal_actual);
 
             if ($newProductId) {
@@ -147,9 +198,9 @@ class ProductoController
         } catch (Exception $e) {
             http_response_code(500);
             if (strpos($e->getMessage(), 'Duplicate entry') !== false && strpos($e->getMessage(), 'sku') !== false) {
-                 echo json_encode(['success' => false, 'message' => 'Error: El SKU ingresado ya existe para otro producto.']);
+                echo json_encode(['success' => false, 'message' => 'Error: El SKU ingresado ya existe para otro producto.']);
             } else {
-                 echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
+                echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
             }
         }
     }
@@ -246,7 +297,6 @@ class ProductoController
         }
 
         $data = json_decode(file_get_contents('php://input'), true);
-
         $id_producto = $data['id_producto'] ?? null;
         $new_stock = $data['new_stock'] ?? null;
         $tipo_movimiento = $data['tipo_movimiento'] ?? 'ajuste';
@@ -287,6 +337,7 @@ class ProductoController
             echo json_encode(['success' => false, 'message' => 'Error al ajustar stock: ' . $e->getMessage()]);
         }
     }
+
     public function getInventoryMovements()
     {
         header('Content-Type: application/json');
@@ -322,10 +373,8 @@ class ProductoController
         }
 
         $searchTerm = trim(htmlspecialchars(strip_tags($_GET['term'])));
-
         try {
             $results = $this->productoModel->findStockInAllBranches($searchTerm);
-
             $groupedResults = [];
             foreach ($results as $row) {
                 $sku = $row['sku'];
@@ -341,13 +390,13 @@ class ProductoController
                     'stock' => (int) $row['stock']
                 ];
             }
-
             echo json_encode(['success' => true, 'data' => array_values($groupedResults)]);
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Error del servidor: ' . $e->getMessage()]);
         }
     }
+
     public function searchProducts()
     {
         header('Content-Type: application/json');
@@ -361,7 +410,6 @@ class ProductoController
         $offset = isset($_GET['offset']) ? intval($_GET['offset']) : 0;
         if ($limit <= 0 || $limit > 200) $limit = 50;
         if ($offset < 0) $offset = 0;
-
         try {
             $id_sucursal = $_SESSION['branch_id'];
             $productos = $this->productoModel->search($id_sucursal, $q, $limit, $offset);

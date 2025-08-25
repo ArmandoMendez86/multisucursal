@@ -261,7 +261,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const product = result.data;
-            barcodeModal.dataset.productDesc = (product.descripcion || "");
             document.getElementById('product-id').value = product.id;
             document.getElementById('nombre').value = product.nombre;
             document.getElementById('sku').value = product.sku;
@@ -547,7 +546,6 @@ document.addEventListener('DOMContentLoaded', function () {
                 barcodeSvg.innerHTML = '';
                 printBarcodeBtn.disabled = true;
                 showModal(barcodeModal);
-                const _descEl = document.getElementById("barcode-desc"); if (_descEl) { _descEl.textContent = ""; }
             } else {
                 showToast(`Error al obtener datos del producto: ${result.message}`, 'error');
             }
@@ -577,25 +575,21 @@ document.addEventListener('DOMContentLoaded', function () {
         if (isValid) {
             try {
                 JsBarcode("#barcode-svg", data, {
-                    format,
+                    format: format,
                     lineColor: "#000",
                     width: 2,
                     height: 80,
                     displayValue: true,
                     fontOptions: "bold",
-                    fontSize: 18,
-                    margin: 0,          // elimina márgenes externos
-                    marginBottom: 0,    // quita espacio debajo del texto del barcode
-                    textMargin: 0       // (opcional) junta barras y número
+                    fontSize: 18
                 });
                 printBarcodeBtn.disabled = false;
-                const descEl = document.getElementById("barcode-desc");
+                const descEl = document.getElementById('barcode-desc');
                 if (descEl) {
-                    const fromForm = document.getElementById("descripcion") ? document.getElementById("descripcion").value.trim() : "";
-                    const fromDataset = (barcodeModal && barcodeModal.dataset && barcodeModal.dataset.productDesc) ? barcodeModal.dataset.productDesc.trim() : "";
-                    const fromHeader = document.getElementById("barcode-product-name") ? document.getElementById("barcode-product-name").textContent.trim() : "";
-                    descEl.textContent = fromForm || fromDataset || fromHeader || "";
+                    const desc = document.getElementById('descripcion')?.value?.trim() || '';
+                    descEl.textContent = desc;      // muestra la descripción bajo el número
                 }
+
             } catch (e) {
                 barcodeFeedback.textContent = `Error: ${e.message.replace('JsBarcode: ', '')}`;
             }
@@ -605,55 +599,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function printBarcode() {
-        const svgEl = document.getElementById('barcode-svg');
-        if (!svgEl) return;
-
-        const descText = (document.getElementById('barcode-desc')?.textContent || '').trim();
-
-        // Serializa el SVG actual
-        const serializer = new XMLSerializer();
-        const svgString = serializer.serializeToString(svgEl);
-
-        // Crea un iframe temporal para imprimir sin abrir nueva pestaña
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'fixed';
-        iframe.style.right = '0';
-        iframe.style.bottom = '0';
-        iframe.style.width = '0';
-        iframe.style.height = '0';
-        iframe.style.border = '0';
-        document.body.appendChild(iframe);
-
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(`<!doctype html>
-                    <html>
-                    <head>
-                    <meta charset="utf-8">
-                    <title>Imprimir código</title>
-                    <style>
-                    @page { margin: 10mm; }
-                    body { margin: 0; font-family: Inter, Arial, sans-serif; }
-                    .wrap { text-align: center; padding: 0 8mm; }
-                    .wrap svg { display:block; max-width:100%; height:auto; margin:0 auto; /* o: margin:0 auto -1mm; */ }
-                    .desc { margin-top: 1mm; font-size: 10pt; color:#000; line-height:1.1; }
-                    </style>
-                    </head>
-                    <body>
-                    <div class="wrap">
-                        ${svgString}
-                        <div class="desc">${descText}</div>
-                    </div>
-                    <script>
-                        window.onload = function () {
-                        setTimeout(function(){ window.print(); window.onafterprint = function(){ window.parent.document.body.removeChild(window.frameElement); }; }, 30);
-                        };
-                    <\/script>
-                    </body>
-                    </html>`);
-        doc.close();
+        const svgElement = barcodeSvg.cloneNode(true);
+        barcodePrintArea.innerHTML = '';
+        barcodePrintArea.appendChild(svgElement);
+        window.print();
     }
-
 
     async function fetchSucursales() {
         if (USER_ROLE !== 'Super' || !branchSelector) return;
