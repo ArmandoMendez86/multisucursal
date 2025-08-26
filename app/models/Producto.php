@@ -288,7 +288,7 @@ class Producto
         $limitClause = "LIMIT :limit OFFSET :offset";
         $bindings[':limit'] = intval($params['length']);
         $bindings[':offset'] = intval($params['start']);
-        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, c.nombre as categoria_nombre, inv.stock, GROUP_CONCAT(DISTINCT pc.codigo_barras SEPARATOR ', ') as codigos_barras " . $baseQuery . " " . $whereClause . " GROUP BY p.id " . $orderClause . " " . $limitClause;
+        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, c.nombre as categoria_nombre, inv.stock, GROUP_CONCAT(DISTINCT pc.codigo_barras SEPARATOR ', ') as codigos_barras, (SELECT pi.url_imagen FROM " . $this->images_table . " pi WHERE pi.producto_id = p.id ORDER BY pi.orden ASC, pi.id ASC LIMIT 1) AS imagen_url " . $baseQuery . " " . $whereClause . " GROUP BY p.id " . $orderClause . " " . $limitClause;
         $stmtData = $this->conn->prepare($query);
         foreach ($bindings as $key => &$val) {
             $stmtData->bindValue($key, $val, is_int($val) ? PDO::PARAM_INT : PDO::PARAM_STR);
@@ -304,7 +304,7 @@ class Producto
 
     public function getAll($id_sucursal)
     {
-        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.activo, c.nombre as categoria_nombre, m.nombre as marca_nombre, inv.stock, inv.stock_minimo, GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') as codigos_barras FROM productos p LEFT JOIN categorias c ON p.id_categoria = c.id LEFT JOIN marcas m ON p.id_marca = m.id LEFT JOIN inventario_sucursal inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal LEFT JOIN " . $this->codes_table . " pc ON p.id = pc.id_producto GROUP BY p.id ORDER BY p.nombre ASC";
+        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.activo, c.nombre as categoria_nombre, m.nombre as marca_nombre, inv.stock, inv.stock_minimo, GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') as codigos_barras, (SELECT pi.url_imagen FROM " . $this->images_table . " pi WHERE pi.producto_id = p.id ORDER BY pi.orden ASC, pi.id ASC LIMIT 1) AS imagen_url FROM productos p LEFT JOIN categorias c ON p.id_categoria = c.id LEFT JOIN marcas m ON p.id_marca = m.id LEFT JOIN inventario_sucursal inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal LEFT JOIN " . $this->codes_table . " pc ON p.id = pc.id_producto GROUP BY p.id ORDER BY p.nombre ASC";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
         $stmt->execute();
@@ -313,7 +313,7 @@ class Producto
 
     public function findByBarcodeOrSku($code, $id_sucursal)
     {
-        $query = "SELECT p.*, inv.stock, inv.stock_minimo FROM " . $this->table_name . " p LEFT JOIN " . $this->inventory_table . " inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal LEFT JOIN " . $this->codes_table . " pc ON p.id = pc.id_producto WHERE (p.sku = :code OR pc.codigo_barras = :code) LIMIT 1";
+        $query = "SELECT p.*, inv.stock, inv.stock_minimo, (SELECT pi.url_imagen FROM " . $this->images_table . " pi WHERE pi.producto_id = p.id ORDER BY pi.orden ASC, pi.id ASC LIMIT 1) AS imagen_url FROM " . $this->table_name . " p LEFT JOIN " . $this->inventory_table . " inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal LEFT JOIN " . $this->codes_table . " pc ON p.id = pc.id_producto WHERE (p.sku = :code OR pc.codigo_barras = :code) LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':code', $code);
         $stmt->bindParam(':id_sucursal', $id_sucursal);
@@ -323,7 +323,7 @@ class Producto
 
     public function getForPOS($id_producto, $id_sucursal, $id_cliente)
     {
-        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, inv.stock FROM " . $this->table_name . " p LEFT JOIN " . $this->inventory_table . " inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal WHERE p.id = :id_producto LIMIT 1";
+        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.precio_1, p.precio_2, p.precio_3, p.precio_4, p.precio_5, inv.stock, (SELECT pi.url_imagen FROM " . $this->images_table . " pi WHERE pi.producto_id = p.id ORDER BY pi.orden ASC, pi.id ASC LIMIT 1) AS imagen_url FROM " . $this->table_name . " p LEFT JOIN " . $this->inventory_table . " inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal WHERE p.id = :id_producto LIMIT 1";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id_producto', $id_producto);
         $stmt->bindParam(':id_sucursal', $id_sucursal);
@@ -413,7 +413,7 @@ class Producto
     public function search($id_sucursal, $q, $limit = 50, $offset = 0)
     {
         $like = '%' . $q . '%';
-        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.activo, c.nombre as categoria_nombre, m.nombre as marca_nombre, inv.stock, inv.stock_minimo, GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') as codigos_barras FROM productos p LEFT JOIN categorias c ON p.id_categoria = c.id LEFT JOIN marcas m ON p.id_marca = m.id LEFT JOIN " . $this->inventory_table . " inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal LEFT JOIN " . $this->codes_table . " pc ON p.id = pc.id_producto WHERE (p.nombre LIKE :like OR p.sku LIKE :like OR pc.codigo_barras LIKE :like) GROUP BY p.id ORDER BY p.nombre ASC LIMIT :offset, :limit";
+        $query = "SELECT p.id, p.sku, p.nombre, p.costo, p.precio_menudeo, p.precio_mayoreo, p.activo, c.nombre as categoria_nombre, m.nombre as marca_nombre, inv.stock, inv.stock_minimo, GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') as codigos_barras, (SELECT pi.url_imagen FROM " . $this->images_table . " pi WHERE pi.producto_id = p.id ORDER BY pi.orden ASC, pi.id ASC LIMIT 1) AS imagen_url FROM productos p LEFT JOIN categorias c ON p.id_categoria = c.id LEFT JOIN marcas m ON p.id_marca = m.id LEFT JOIN " . $this->inventory_table . " inv ON p.id = inv.id_producto AND inv.id_sucursal = :id_sucursal LEFT JOIN " . $this->codes_table . " pc ON p.id = pc.id_producto WHERE (p.nombre LIKE :like OR p.sku LIKE :like OR pc.codigo_barras LIKE :like) GROUP BY p.id ORDER BY p.nombre ASC LIMIT :offset, :limit";
         $stmt = $this->conn->prepare($query);
         $stmt->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
         $stmt->bindParam(':like', $like);

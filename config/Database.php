@@ -7,7 +7,7 @@ class Database
     //Localhost
 
 
-    /* private $host = 'localhost';
+   /*  private $host = 'localhost';
     private $db_name = 'update_mega';
     private $username = 'root';
     private $password = 'linux';

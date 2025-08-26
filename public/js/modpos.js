@@ -202,7 +202,7 @@ document.addEventListener("DOMContentLoaded", function () {
       productCard.dataset.productId = product.id;
       productCard.title = String(product.nombre || '');
       productCard.setAttribute('aria-label', productCard.title);
-      const imageUrl = (product.imagen_url && typeof product.imagen_url === "string") ? (product.imagen_url.startsWith("http") ? product.imagen_url : `${BASE_URL}/public${product.imagen_url}`) : `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent((product.nombre||"").substring(0,8))}`;
+      const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(product.nombre.substring(0, 8))}`;
       const stockClass = isOutOfStock ? 'zero-stock' : '';
       const stockText = isOutOfStock ? 'Agotado' : `Stock: ${stock}`;
       
@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function () {
       filteredCart.forEach((item) => {
         const cartItem = document.createElement("div");
         cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
-        const imageUrl = (item.imagen_url && typeof item.imagen_url === "string") ? (item.imagen_url.startsWith("http") ? item.imagen_url : `${BASE_URL}/public${item.imagen_url}`) : `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent((item.nombre||"").substring(0,5))}`;
+        const imageUrl = `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent(item.nombre.substring(0, 5))}`;
         let priceTypeLabel = "";
         if (item.tipo_precio_aplicado === "Especial") {
           priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';

@@ -176,6 +176,13 @@ document.addEventListener('DOMContentLoaded', function () {
                         `
                 }
             ],
+            buttons: [
+                { extend: 'copyHtml5', text: 'Copiar', exportOptions: { columns: [0, 1, 2, 3] } },
+                { extend: 'excelHtml5', title: 'Productos', exportOptions: { columns: [0, 1, 2, 3] } },
+                { extend: 'csvHtml5', title: 'Productos', exportOptions: { columns: [0, 1, 2, 3] } },
+                { extend: 'pdfHtml5', title: 'Productos', exportOptions: { columns: [0, 1, 2, 3] } },
+                { extend: 'print', text: 'Imprimir', exportOptions: { columns: [0, 1, 2, 3] } }
+            ],
             responsive: true,
             paging: true,
             searching: true,
@@ -183,17 +190,8 @@ document.addEventListener('DOMContentLoaded', function () {
             lengthChange: true,
             pageLength: 10,
             lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-            language: {
-                search: "Buscar:",
-                searchPlaceholder: "Buscar producto...",
-                zeroRecords: "No se encontraron productos",
-                emptyTable: "No hay productos",
-                info: "Mostrando _START_ a _END_ de _TOTAL_ productos",
-                infoEmpty: "Mostrando 0 a 0 de 0 productos",
-                paginate: { first: "Primero", last: "Último", next: "Siguiente", previous: "Anterior" },
-                processing: "Procesando..."
-            },
-            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 gap-4" <"flex items-center" l> <"ml-auto" f> > rt <"flex justify-between items-center mt-4"ip>'
+            language: { url: 'js/es.json' },
+            dom: "<'flex justify-between'lf>" + "<'clear'>" + "<'flex justify-center mb-8'B>" + 'rtip',
         });
     }
 
@@ -218,6 +216,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 { data: 'motivo', defaultContent: 'N/A' },
                 { data: 'usuario_nombre' }
             ],
+            buttons: [
+                { extend: 'copyHtml5', text: 'Copiar', exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7] } },
+                { extend: 'excelHtml5', title: 'Movimientos', exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7] } },
+                { extend: 'csvHtml5', title: 'Movimientos', exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7] } },
+                { extend: 'pdfHtml5', title: 'Movimientos', exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7] } },
+                { extend: 'print', text: 'Imprimir', exportOptions: { columns: [0, 1, 2, 3, 4, 5, 6, 7] } }
+            ],
             order: [[0, 'desc']],
             paging: true,
             responsive: true,
@@ -226,8 +231,8 @@ document.addEventListener('DOMContentLoaded', function () {
             lengthChange: true,
             pageLength: 10,
             lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
-            language: { search: "Buscar:", searchPlaceholder: "Buscar movimiento...", zeroRecords: "No se encontraron movimientos", emptyTable: "No hay movimientos", info: "Mostrando _START_ a _END_ de _TOTAL_ movimientos", infoEmpty: "Mostrando 0 a 0 de 0 movimientos", paginate: { first: "Primero", last: "Último", next: "Siguiente", previous: "Anterior" } },
-            dom: '<"flex flex-col md:flex-row justify-between items-center mb-4 gap-4" <"flex items-center" l> <"ml-auto" f> > rt <"flex justify-between items-center mt-4"ip>'
+            language: { url: 'js/es.json' },
+            dom: "<'flex justify-between'lf>" + "<'clear'>" + "<'flex justify-center mb-8'B>" + 'rtip',
         });
     }
 
@@ -793,9 +798,9 @@ document.addEventListener('DOMContentLoaded', function () {
         categoriesTableBody.innerHTML = '';
         categoriesToRender.forEach(category => {
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-gray-800';
+            tr.className = 'hover:bg-gray-500 hover:text-black';
             tr.innerHTML = `
-                <td class="py-3 px-6 text-sm font-semibold text-white">${category.nombre}</td>
+                <td class="py-3 px-6 text-sm font-semibold">${category.nombre}</td>
                 <td class="py-3 px-6 text-sm">${category.descripcion || 'Sin descripción'}</td>
                 <td class="py-3 px-6 text-center">
                     <button data-id="${category.id}" data-name="${category.nombre}" data-description="${category.descripcion || ''}" class="edit-category-btn text-blue-400 hover:text-blue-300 mr-3" title="Editar Categoría"><i class="fas fa-pencil-alt"></i></button>
@@ -869,6 +874,7 @@ document.addEventListener('DOMContentLoaded', function () {
         brandsTableBody.innerHTML = '';
         brandsToRender.forEach(brand => {
             const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-500 hover:text-black';
             tr.className = 'hover:bg-gray-800';
             tr.innerHTML = `
                 <td class="py-3 px-6 text-sm font-semibold text-white">${brand.nombre}</td>

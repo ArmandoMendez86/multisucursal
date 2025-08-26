@@ -272,13 +272,24 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         .dropzone .dz-preview:hover .dz-image:after {
             opacity: 1;
         }
-    
-/* --- Centro códigos de barras y descripción --- */
-#barcode-svg { display:block; margin-left:auto; margin-right:auto; }
-#barcode-desc { text-align:center; }
-#print-barcode-btn { display:block; margin-left:auto; margin-right:auto; }
 
-</style>
+        /* --- Centro códigos de barras y descripción --- */
+        #barcode-svg {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #barcode-desc {
+            text-align: center;
+        }
+
+        #print-barcode-btn {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+    </style>
 </head>
 
 <body class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)]"
@@ -312,11 +323,12 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
             </div>
 
             <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow overflow-auto mb-8 p-4">
-                <h3 class="text-2xl font-bold text-[var(--color-text-primary)]">
+                <h3 class="text-2xl font-bold text-[var(--color-text-primary)] mb-8">
                     <i class="fas fa-box mr-3 text-blue-400"></i> Gestión de Inventario
                 </h3>
+
                 <table id="productsTable" class="min-w-full">
-                    <thead class="text-xs text-[var(--color-text-secondary)] uppercase">
+                    <thead class="bg-[var(--color-bg-primary)] text-xs text-[var(--color-text-secondary)] uppercase">
                         <tr>
                             <th class="py-3 px-6 text-left">SKU</th>
                             <th class="py-3 px-6 text-left">Nombre</th>
@@ -327,15 +339,15 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                             <th class="py-3 px-6 text-center">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody class="text-sm"></tbody>
+                    <tbody class="text-xs"></tbody>
                 </table>
             </div>
 
             <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow overflow-hidden p-6">
-                <h3 class="text-2xl font-bold text-[var(--color-text-primary)] flex items-center">
+                <h3 class="text-2xl font-bold text-[var(--color-text-primary)] mb-8">
                     <i class="fas fa-history mr-3 text-blue-400"></i> Historial de Movimientos
                 </h3>
-                <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow overflow-auto mt-4 p-4">
+                
                     <table class="min-w-full" id="historyTable">
                         <thead class="text-xs text-[var(--color-text-secondary)] uppercase sticky top-0">
                             <tr>
@@ -349,9 +361,9 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                                 <th class="py-3 px-6 text-left">Usuario</th>
                             </tr>
                         </thead>
-                        <tbody class="text-sm"></tbody>
+                        <tbody class="text-xs"></tbody>
                     </table>
-                </div>
+               
             </div>
         </main>
     </div>
