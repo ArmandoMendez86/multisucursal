@@ -7,17 +7,17 @@ class Database
     //Localhost
 
 
-    private $host = 'localhost';
+   /*  private $host = 'localhost';
     private $db_name = 'update_mega';
     private $username = 'root';
-    private $password = 'linux';
-    private $conn;
-
-    /* private $host = 'localhost';
-    private $db_name = 'megapart_multi';
-    private $username = 'megapart_multi';
-    private $password = 'Multi861215#-';
+    private $password = 'Linux861215';
     private $conn; */
+
+    private $host = 'localhost';
+    private $db_name = 'megapart_megaparty';
+    private $username = 'megapart_megaparty';
+    private $password = 'Mega861215#-';
+    private $conn;
 
 
 

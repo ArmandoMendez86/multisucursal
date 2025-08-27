@@ -177,7 +177,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                         <input type="number" id="initial-cash" value="0.00" step="0.01"
                             class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] w-32">
                     </div>
-                    <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] === 'Administrador'): ?>
+                    <?php if (isset($_SESSION['rol']) && ($_SESSION['rol'] === 'Administrador' || $_SESSION['rol'] === 'Super')): ?>
                         <div>
                             <label for="user-filter-select"
                                 class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Filtrar por
@@ -254,7 +254,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <script src="js/confirm.js"></script>
     <script src="js/reportes.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('DOMContentLoaded', function() {
             const mobileMenuButton = document.getElementById('mobile-menu-button');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');

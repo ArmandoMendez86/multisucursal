@@ -103,7 +103,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   let currentCashCutData = null;
   let currentInitialCash = 0;
-  let configuredPrinter = null;
+  let printerConfig = {
+    name: null,
+    isLoaded: false,
+    isLoading: false
+  };
 
   // --- Lógica para el modal de configuración de impresora de reportes ---
   const configPrinterBtn = document.getElementById('config-printer-btn');
@@ -136,29 +140,66 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (savePrinterConfigBtn) {
     savePrinterConfigBtn.addEventListener('click', () => {
-      printMethod = radioService.checked ? 'service' : 'qztray';
-      localStorage.setItem('reportesPrintMethod', printMethod);
+      // Determinamos el método seleccionado en el modal
+      const selectedMethod = radioService.checked ? 'service' : 'qztray';
+
+      // Guardamos la elección del usuario en localStorage para que tenga prioridad
+      localStorage.setItem('reportesPrintMethod', selectedMethod);
+      printMethod = selectedMethod; // Actualizamos la variable global inmediatamente
+
       showToast('Configuración de impresora guardada.', 'success');
       printerConfigModal.classList.add('hidden');
-      // Recargamos para asegurar que QZ Tray se conecte/desconecte correctamente
-      window.location.reload();
+
+      // Si eligen QZ Tray, intentamos conectar
+      if (printMethod === 'qztray') {
+        if (typeof connectQz === "function") {
+          connectQz();
+        } else {
+          console.error("La función connectQz no está disponible.");
+        }
+      }
     });
   }
   // --- Fin de la lógica del modal ---
 
-  async function fetchPrinterConfig() {
+  async function getPrintPrefs() {
+    if (printerConfig.isLoading || printerConfig.isLoaded) return;
+
+    printerConfig.isLoading = true;
+    console.log("Iniciando carga de preferencias de impresión...");
+
     try {
-      // Esta petición obtiene la impresora asignada al usuario desde el backend
-      const response = await fetch(`${BASE_URL}/getPrinterConfig`);
+      // Primero, revisamos si el usuario ya eligió un método y lo guardó.
+      const localPrintMethod = localStorage.getItem('reportesPrintMethod');
+
+      // Hacemos la llamada a la BD para obtener el nombre de la impresora
+      const response = await fetch(`${BASE_URL}/getPrintPrefs`);
       const result = await response.json();
-      if (result.success && result.data.impresora_tickets) {
-        configuredPrinter = result.data.impresora_tickets;
-        console.log("Impresora configurada:", configuredPrinter); // Mensaje para verificar
+
+      if (result.success && result.data) {
+        printerConfig.name = result.data.impresora_tickets || null;
+
+        // Si NO hay nada en localStorage, usamos lo que venga de la BD.
+        if (!localPrintMethod) {
+          printMethod = result.data.print_method || 'service';
+        }
+        // Si SÍ hay algo en localStorage, respetamos esa elección.
+        // La variable `printMethod` ya fue inicializada con ese valor.
+
       } else {
-        console.warn("No se encontró una impresora de tickets en la configuración.");
+        console.warn("No se encontraron preferencias en la BD. Se usará la configuración local.");
       }
+
+      console.log("Preferencias cargadas:", { method: printMethod, printer: printerConfig.name });
+      updatePrinterMethodSelection(); // Sincroniza el modal con el método actual
+
     } catch (error) {
-      console.error("No se pudo cargar la configuración de la impresora.", error);
+      console.error("No se pudo cargar las preferencias de impresión.", error);
+      showToast("Error al cargar preferencias de impresión.", "error");
+    } finally {
+      printerConfig.isLoading = false;
+      printerConfig.isLoaded = true;
+      console.log("Carga de preferencias de impresión finalizada.");
     }
   }
 
@@ -404,9 +445,15 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function handlePrintTicket(saleId) {
+    // 1. Asegurarnos de que las preferencias de la impresora estén cargadas
+    if (!printerConfig.isLoaded) {
+      showToast("Cargando configuración de impresora, por favor espere...", "info");
+      await getPrintPrefs(); // Esperamos a que termine
+    }
+
+    // 2. Obtener los datos del ticket
     showToast("Obteniendo datos del ticket...", "info");
     let ticketData;
-
     try {
       const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
       const result = await response.json();
@@ -421,19 +468,17 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    // Añadimos el nombre de la impresora para ambos métodos
-    if (configuredPrinter) {
-      ticketData.printerName = configuredPrinter;
-    }
-
-    // Decidimos qué método usar
+    // 3. Decidir qué método usar
     if (printMethod === 'service') {
       showToast("Enviando a servicio de impresión local...", "info");
+      if (printerConfig.name) {
+        ticketData.printerName = printerConfig.name;
+      }
       try {
         const serviceResponse = await fetch('http://127.0.0.1:9898/imprimir', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...ticketData, type: 'ticket' }) // Enviamos el tipo
+          body: JSON.stringify({ ...ticketData, type: 'ticket' })
         });
         if (serviceResponse.ok) {
           showToast("Ticket enviado al servicio local.", "success");
@@ -451,19 +496,19 @@ document.addEventListener("DOMContentLoaded", function () {
         showToast("QZ Tray no está conectado.", "warning");
         return;
       }
-      if (!configuredPrinter) {
+      if (!printerConfig.name) {
         showToast("No hay una impresora configurada para QZ Tray.", "error");
         return;
       }
       try {
-        // 'printTicket' es tu función existente para QZ Tray
-        await printTicket(configuredPrinter, ticketData);
+        await printTicket(printerConfig.name, ticketData);
       } catch (e) {
         console.error("Error al imprimir con QZ Tray:", e);
         showToast("No se pudo imprimir con QZ Tray.", "error");
       }
     }
   }
+
 
   function handleViewPdf(saleId) {
     const pdfUrl = `${BASE_URL}/generateQuote?id=${saleId}`;
@@ -565,23 +610,32 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function printCashCutReport() {
+    // 1. Asegurarnos de que las preferencias de impresión estén cargadas
+    if (!printerConfig.isLoaded) {
+      showToast("Cargando configuración de impresora, por favor espere...", "info");
+      await getPrintPrefs();
+    }
+
+    // 2. Verificar que existan datos del corte para imprimir
     if (!currentCashCutData) {
       showToast("No hay datos de corte de caja para imprimir.", "error");
       return;
     }
 
+    // 3. Obtener los detalles (gastos y abonos) que no están en currentCashCutData
+    showToast("Recopilando detalles del reporte...", "info");
+    const dateForPrint = cashCutDateInput.value;
+    const detailedExpenses = await fetchDetailedData(`${BASE_URL}/getDetailedExpenses`, dateForPrint);
+    const detailedClientPayments = await fetchDetailedData(`${BASE_URL}/getDetailedClientPayments`, dateForPrint);
+
+    // 4. Decidir qué método de impresión usar
     if (printMethod === 'service') {
       showToast("Enviando corte de caja al servicio local...", "info");
 
-      // 1. Recopilamos toda la data necesaria para el reporte
-      const dateForPrint = cashCutDateInput.value;
-      const detailedExpenses = await fetchDetailedData(`${BASE_URL}/getDetailedExpenses`, dateForPrint);
-      const detailedClientPayments = await fetchDetailedData(`${BASE_URL}/getDetailedClientPayments`, dateForPrint);
-
-      // 2. Creamos un objeto JSON que el servicio pueda interpretar
+      // Creamos un objeto JSON completo con toda la información para el servicio
       const reportData = {
         type: 'corte', // Un identificador para que el servicio sepa qué formato usar
-        printerName: configuredPrinter,
+        printerName: printerConfig.name,
         corte: currentCashCutData,
         cajaInicial: currentInitialCash,
         gastosDetalle: detailedExpenses,
@@ -590,7 +644,6 @@ document.addEventListener("DOMContentLoaded", function () {
         usuario: userFilterSelect ? userFilterSelect.options[userFilterSelect.selectedIndex].text : 'N/A'
       };
 
-      // 3. Enviamos la data al servicio local
       try {
         const serviceResponse = await fetch('http://127.0.0.1:9898/imprimir', {
           method: 'POST',
@@ -607,20 +660,63 @@ document.addEventListener("DOMContentLoaded", function () {
         console.warn("Servicio local no disponible:", err);
         showToast("Servicio local no encontrado. Verifique que esté en ejecución.", "error");
       }
+
     } else { // 'qztray'
-      // Este bloque contiene tu lógica original de impresión con QZ Tray
       showToast("Enviando corte de caja a QZ Tray...", "info");
+
       if (typeof qz === "undefined" || !qz.websocket.isActive()) {
         showToast("QZ Tray no está conectado.", "warning");
         return;
       }
-      if (!configuredPrinter) {
+      if (!printerConfig.name) {
         showToast("Impresora no configurada para QZ Tray.", "error");
         return;
       }
-      // Aquí va tu lógica existente para construir 'dataToPrint' para QZ Tray...
-      const config = qz.configs.create(configuredPrinter);
-      // ... (el resto de tu código para QZ Tray sin cambios) ...
+
+      // Construimos el formato de texto plano para la impresora de tickets
+      const totalIngresosEfectivo = parseFloat(currentCashCutData.ventas_efectivo || 0) + parseFloat(currentCashCutData.abonos_clientes || 0);
+      const balanceFinal = currentInitialCash + totalIngresosEfectivo - parseFloat(currentCashCutData.total_gastos || 0);
+      const formatInputDateToDDMMYYYY = (dateString) => {
+        const parts = dateString.split('-');
+        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateString;
+      };
+
+      let dataToPrint = [
+        "\x1B" + "\x40", // Reset
+        "\x1B" + "\x61" + "\x31", // Center align
+        "\x1B" + "\x21" + "\x10", // Double height
+        "CORTE DE CAJA" + "\x0A",
+        "\x1B" + "\x21" + "\x00", // Normal size
+        formatInputDateToDDMMYYYY(dateForPrint) + "\x0A",
+        "\x0A",
+        "\x1B" + "\x61" + "\x30", // Left align
+        "-".repeat(ticketWidth) + "\x0A",
+        formatCentered("--- INGRESOS ---") + "\x0A",
+        formatLine("Caja Inicial:", formatCurrencyForTicket(currentInitialCash)),
+        formatLine("Ventas en Efectivo:", formatCurrencyForTicket(currentCashCutData.ventas_efectivo)),
+        formatLine("Abonos de Clientes:", formatCurrencyForTicket(currentCashCutData.abonos_clientes)),
+        "-".repeat(ticketWidth) + "\x0A",
+        formatLine("TOTAL INGRESOS:", formatCurrencyForTicket(totalIngresosEfectivo)),
+        "\x0A",
+        formatCentered("--- EGRESOS ---") + "\x0A",
+        formatLine("Total de Gastos:", formatCurrencyForTicket(currentCashCutData.total_gastos)),
+        "\x0A",
+        "-".repeat(ticketWidth) + "\x0A",
+        "\x1B" + "\x21" + "\x08", // Emphasized
+        formatLine("BALANCE FINAL:", formatCurrencyForTicket(balanceFinal)),
+        "\x1B" + "\x21" + "\x00", // Normal
+        "-".repeat(ticketWidth) + "\x0A",
+        "\x0A",
+        formatCentered("--- OTROS TOTALES ---") + "\x0A",
+        formatLine("Total Ventas (Todos):", formatCurrencyForTicket(currentCashCutData.total_ventas)),
+        formatLine("Ventas con Tarjeta:", formatCurrencyForTicket(currentCashCutData.ventas_tarjeta)),
+        formatLine("Ventas Transferencia:", formatCurrencyForTicket(currentCashCutData.ventas_transferencia)),
+        formatLine("Ventas a Credito:", formatCurrencyForTicket(currentCashCutData.ventas_credito)),
+        "\x0A" + "\x0A" + "\x0A",
+        "\x1D" + "\x56" + "\x41" + "\x03" // Cortar papel
+      ];
+
+      const config = qz.configs.create(printerConfig.name);
       try {
         await qz.print(config, dataToPrint);
         showToast("Corte de caja enviado a la impresora.", "success");
@@ -630,6 +726,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   }
+
 
   async function printCashCutReportWithDialog() {
     const dateForPrint = cashCutDateInput.value;
@@ -692,25 +789,26 @@ document.addEventListener("DOMContentLoaded", function () {
     openPrintDialogWithTicket(reportHtml, `Corte-${dateForPrint}`);
   }
 
-  generateCashCutBtn.addEventListener("click", fetchCashCut);
-  printCashCutBtn.addEventListener("click", printCashCutReport);
+  async function initializePage() {
+    const now = new Date();
+    const todayFormatted = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
+    if (cashCutDateInput) cashCutDateInput.value = todayFormatted;
+
+    initSalesDataTable();
+    await loadUsersForFilter();
+    await fetchCashCut();
+
+    // La configuración y el método de impresión se cargan al final
+    await getPrintPrefs();
+  }
+
+  // Event Listeners
+  if (generateCashCutBtn) generateCashCutBtn.addEventListener("click", fetchCashCut);
+  if (printCashCutBtn) printCashCutBtn.addEventListener("click", printCashCutReport);
   if (userFilterSelect) {
     userFilterSelect.addEventListener('change', fetchCashCut);
   }
 
-  const now = new Date();
-  const todayFormatted = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
-
-  // CORREGIDO: Se verifica si los elementos existen antes de asignarles valor.
-  const startDateInputRef = document.getElementById("start-date");
-  const endDateInputRef = document.getElementById("end-date");
-  if (startDateInputRef) startDateInputRef.value = todayFormatted;
-  if (endDateInputRef) endDateInputRef.value = todayFormatted;
-
-  cashCutDateInput.value = todayFormatted;
-
-  fetchCashCut();
-  loadUsersForFilter();
-  fetchPrinterConfig();
-  initSalesDataTable();
+  // Iniciar la página
+  initializePage();
 });
