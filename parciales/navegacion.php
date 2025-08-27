@@ -47,14 +47,17 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
     padding-right: 0.75rem;
   }
 
+  /* 1. Ocultar el contenedor del logo en lugar de encogerlo */
   #sidebar.w-24 #logo-container {
-    width: 2.5rem;
-    height: 2.5rem;
-    margin-bottom: 0;
+    display: none;
   }
 
+  /* 2. Ajustar la cabecera para que no quede un espacio vacío */
   #sidebar.w-24 .sidebar-header {
-    height: 6rem;
+    height: auto;
+    /* Altura automática */
+    padding-top: 1rem;
+    padding-bottom: 1rem;
   }
 
   #sidebar-overlay {
@@ -77,7 +80,7 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
       <!-- MODIFICACIÓN: Se añade un id="sidebar-logo" a la imagen del logo -->
       <img id="sidebar-logo" src="<?= htmlspecialchars($logo, ENT_QUOTES, 'UTF-8') ?>" alt="Logo" class="h-32 w-auto rounded-full p-1">
     </div>
-    <h2 id="sucursal-nombre" class="text-xl font-semibold text-[var(--color-text-primary)] nav-text">
+    <h2 id="sucursal-nombre" class="text-lg font-semibold text-[var(--color-text-primary)] nav-text">
       <?php echo isset($_SESSION['branch_name']) ? htmlspecialchars($_SESSION['branch_name']) : 'Mi Sucursal'; ?>
     </h2>
   </div>
@@ -178,7 +181,7 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
 </aside>
 
 <script>
-  (function () {
+  (function() {
     // --- LÓGICA DEL TEMA CLARO/OSCURO ---
     const themeToggleBtn = document.getElementById('theme-toggle');
     const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
@@ -245,7 +248,9 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
     }
 
     function logout() {
-      fetch("index.php?action=logout", { method: "POST" }).finally(() => {
+      fetch("index.php?action=logout", {
+        method: "POST"
+      }).finally(() => {
         window.location.href = "login.php";
       });
     }
