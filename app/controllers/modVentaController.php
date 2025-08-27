@@ -195,7 +195,7 @@ class VentaController
             $id_usuario = $_SESSION['user_id'];
             $id_sucursal = $_SESSION['branch_id'];
 
-            $newSaleId = $this->ventaModel->duplicateById($id_venta_original, $id_usuario, $id_sucursal, isset($data['id_cliente']) ? intval($data['id_cliente']) : null);
+            $newSaleId = $this->ventaModel->duplicateById($id_venta_original, $id_usuario, $id_sucursal);
 
             if ($newSaleId) {
                 echo json_encode(['success' => true, 'message' => 'Venta duplicada exitosamente.', 'new_sale_id' => $newSaleId]);

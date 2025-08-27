@@ -23,165 +23,61 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       font-size: 0.65rem;
       line-height: 0.8rem;
     }
-
-    ::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: var(--color-bg-secondary);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: var(--color-border);
-      border-radius: 10px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: var(--color-text-secondary);
-    }
+    
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
+    ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
 
     .product-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(100px, auto));
-      gap: 0.75rem;
-      padding: 0.25rem;
-      overflow-y: auto;
-      flex: 1;
-      align-content: start;
-      align-items: start;
+      gap: 0.75rem; padding: 0.25rem; overflow-y: auto; flex: 1;
+      align-content: start; align-items: start;
     }
 
     .product-card {
       background-color: var(--color-bg-secondary);
       border: 1px solid var(--color-border);
     }
-
-    .product-card:hover {
-      background-color: var(--color-bg-primary);
-    }
-
-    .product-card.out-of-stock {
-      background-color: var(--color-bg-primary);
-    }
-
-    .product-card.out-of-stock:hover {
-      background-color: var(--color-bg-primary);
-    }
-
-    .product-card-stock.zero-stock {
-      color: #ef4444;
-    }
-
-    .product-card-image {
-      border: 1px solid var(--color-border);
-    }
-
-    .product-card-name {
-      color: var(--color-text-primary);
-    }
-
-    .product-card-stock {
-      color: var(--color-text-secondary);
-    }
+    .product-card:hover { background-color: var(--color-bg-primary); }
+    .product-card.out-of-stock { background-color: var(--color-bg-primary); }
+    .product-card.out-of-stock:hover { background-color: var(--color-bg-primary); }
+    .product-card-stock.zero-stock { color: #ef4444; }
+    .product-card-image { border: 1px solid var(--color-border); }
+    .product-card-name { color: var(--color-text-primary); }
+    .product-card-stock { color: var(--color-text-secondary); }
 
     .cart-item {
       border-bottom: 1px solid var(--color-border);
       background-color: var(--color-bg-secondary);
     }
+    .cart-item:hover { background-color: var(--color-bg-primary); }
+    .cart-item-image { border: 1px solid var(--color-border); }
 
-    .cart-item:hover {
-      background-color: var(--color-bg-primary);
-    }
+    .quantity-controls { background-color: var(--color-bg-primary); }
+    .quantity-controls button { background-color: var(--color-bg-secondary); color: var(--color-text-primary); }
+    .quantity-controls button:hover { background-color: var(--color-border); }
+    .quantity-controls input { background-color: var(--color-bg-secondary); color: var(--color-text-primary); }
 
-    .cart-item-image {
-      border: 1px solid var(--color-border);
-    }
+    .modal-overlay { background-color: rgba(0, 0, 0, 0.75); }
 
-    .quantity-controls {
-      background-color: var(--color-bg-primary);
-    }
+    .price-type-btn { color: var(--color-text-secondary); }
+    .price-type-btn.active-price-type { background-color: var(--color-accent); color: white; }
+    .price-type-btn:not(.active-price-type):hover { background-color: var(--color-border); }
 
-    .quantity-controls button {
-      background-color: var(--color-bg-secondary);
-      color: var(--color-text-primary);
-    }
+    .select2-container--default .select2-selection--single { background-color: var(--color-bg-secondary) !important; border: 1px solid var(--color-border) !important; }
+    .select2-container--default .select2-selection--single .select2-selection__rendered { color: var(--color-text-primary) !important; }
+    .select2-container--default .select2-selection--single .select2-selection__arrow b { border-color: var(--color-text-secondary) transparent transparent transparent !important; }
+    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b { border-color: transparent transparent var(--color-text-secondary) transparent !important; }
+    .select2-dropdown { background-color: var(--color-bg-secondary) !important; border: 1px solid var(--color-border) !important; }
+    .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable { background-color: var(--color-accent) !important; color: white !important; }
+    .select2-container--default .select2-results__option--selectable { color: var(--color-text-primary) !important; }
+    .select2-search--dropdown .select2-search__field { background-color: var(--color-bg-primary) !important; border: 1px solid var(--color-border) !important; color: var(--color-text-primary) !important; }
+    .select2-results__message { color: var(--color-text-secondary) !important; }
 
-    .quantity-controls button:hover {
-      background-color: var(--color-border);
-    }
-
-    .quantity-controls input {
-      background-color: var(--color-bg-secondary);
-      color: var(--color-text-primary);
-    }
-
-    .modal-overlay {
-      background-color: rgba(0, 0, 0, 0.75);
-    }
-
-    .price-type-btn {
-      color: var(--color-text-secondary);
-    }
-
-    .price-type-btn.active-price-type {
-      background-color: var(--color-accent);
-      color: white;
-    }
-
-    .price-type-btn:not(.active-price-type):hover {
-      background-color: var(--color-border);
-    }
-
-    .select2-container--default .select2-selection--single {
-      background-color: var(--color-bg-secondary) !important;
-      border: 1px solid var(--color-border) !important;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-      color: var(--color-text-primary) !important;
-    }
-
-    .select2-container--default .select2-selection--single .select2-selection__arrow b {
-      border-color: var(--color-text-secondary) transparent transparent transparent !important;
-    }
-
-    .select2-container--default.select2-container--open .select2-selection--single .select2-selection__arrow b {
-      border-color: transparent transparent var(--color-text-secondary) transparent !important;
-    }
-
-    .select2-dropdown {
-      background-color: var(--color-bg-secondary) !important;
-      border: 1px solid var(--color-border) !important;
-    }
-
-    .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable {
-      background-color: var(--color-accent) !important;
-      color: white !important;
-    }
-
-    .select2-container--default .select2-results__option--selectable {
-      color: var(--color-text-primary) !important;
-    }
-
-    .select2-search--dropdown .select2-search__field {
-      background-color: var(--color-bg-primary) !important;
-      border: 1px solid var(--color-border) !important;
-      color: var(--color-text-primary) !important;
-    }
-
-    .select2-results__message {
-      color: var(--color-text-secondary) !important;
-    }
-
-    #toggle-negative-stock:checked+.block {
-      background-color: #22c55e;
-    }
-
-    #toggle-negative-stock:checked~.dot,
-    #toggle-negative-stock:checked~div>.dot {
-      transform: translateX(1rem);
-    }
+    #toggle-negative-stock:checked + .block { background-color: #22c55e; }
+    #toggle-negative-stock:checked ~ .dot, #toggle-negative-stock:checked ~ div > .dot { transform: translateX(1rem); }
   </style>
 </head>
 
@@ -191,8 +87,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
   <main class="flex-1 flex flex-col overflow-hidden">
 
-    <header
-      class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+    <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
       <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
         <i class="fas fa-bars text-2xl"></i>
       </button>
@@ -204,13 +99,11 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       <div class="px-4 py-2">
         <div class="flex items-center gap-3">
           <label class="text-sm text-[var(--color-text-secondary)]">Impresión</label>
-          <div
-            class="flex items-center bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg overflow-hidden">
+          <div class="flex items-center bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-lg overflow-hidden">
             <button id="pm-service" class="px-3 py-1 text-sm bg-[var(--color-accent)] text-white">Servicio</button>
             <button id="pm-qztray" class="px-3 py-1 text-sm text-[var(--color-text-primary)]">QZ Tray</button>
           </div>
-          <button id="btn-qz-connect"
-            class="hidden px-3 py-1 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded">
+          <button id="btn-qz-connect" class="hidden px-3 py-1 text-sm bg-emerald-600 hover:bg-emerald-500 text-white rounded">
             Conectar QZ
           </button>
           <span id="qz-status" class="text-xs text-[var(--color-text-secondary)]">QZ: <span>Desconectado</span></span>
@@ -262,8 +155,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
           <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
 
             <div class="flex-grow w-full">
-              <label for="search-client"
-                class="block text-xs font-medium mb-1 text-[var(--color-text-secondary)]">Cliente</label>
+              <label for="search-client" class="block text-xs font-medium mb-1 text-[var(--color-text-secondary)]">Cliente</label>
               <div class="flex gap-2">
                 <select id="search-client" class="w-full">
                   <option value="1" selected>Público en General</option>
@@ -277,10 +169,8 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
             <div class="flex-shrink-0">
               <label class="block text-xs font-medium mb-1 text-[var(--color-text-secondary)]">Tipo de Precio</label>
-              <div id="price-type-selector"
-                class="flex items-center bg-[var(--color-bg-primary)] rounded-lg p-1 border border-[var(--color-border)]">
-                <button data-level="1"
-                  class="price-type-btn active-price-type px-4 py-2 text-sm font-semibold rounded-md">P1</button>
+              <div id="price-type-selector" class="flex items-center bg-[var(--color-bg-primary)] rounded-lg p-1 border border-[var(--color-border)]">
+                <button data-level="1" class="price-type-btn active-price-type px-4 py-2 text-sm font-semibold rounded-md">P1</button>
                 <button data-level="2" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P2</button>
                 <button data-level="3" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P3</button>
                 <button data-level="4" class="price-type-btn px-4 py-2 text-sm font-semibold rounded-md">P4</button>
@@ -382,19 +272,17 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       </div>
     </div>
   </div>
-  <div id="add-client-modal" class="fixed inset-0 z-[120] flex items-center justify-center modal-overlay hidden"
-    role="dialog" aria-modal="true">
+  <div id="add-client-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden">
     <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-lg">
       <div class="p-6 border-b border-[var(--color-border)] flex justify-between items-center">
         <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Añadir Nuevo Cliente</h2>
-        <button id="close-add-client-modal-btn"
-          class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
+        <button id="close-add-client-modal-btn" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
       </div>
       <div class="p-6">
         <form id="add-client-form" class="space-y-4">
           <div>
-            <label for="client-name" class="block text-sm font-medium text-[var(--color-text-secondary)]">Nombre del
-              Cliente <span class="text-red-500">*</span></label>
+            <label for="client-name" class="block text-sm font-medium text-[var(--color-text-secondary)]">Nombre del Cliente <span
+                class="text-red-500">*</span></label>
             <input type="text" id="client-name" name="nombre" required
               class="mt-1 block w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
           </div>
@@ -404,8 +292,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
               class="mt-1 block w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
           </div>
           <div>
-            <label for="client-phone"
-              class="block text-sm font-medium text-[var(--color-text-secondary)]">Teléfono</label>
+            <label for="client-phone" class="block text-sm font-medium text-[var(--color-text-secondary)]">Teléfono</label>
             <input type="tel" id="client-phone" name="telefono"
               class="mt-1 block w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
           </div>
@@ -417,12 +304,10 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
           <div class="flex items-center">
             <input type="checkbox" id="client-has-credit" name="tiene_credito" value="1"
               class="h-4 w-4 text-[var(--color-accent)] focus:ring-[var(--color-accent)] border-[var(--color-border)] rounded bg-[var(--color-bg-primary)]">
-            <label for="client-has-credit" class="ml-2 block text-sm text-[var(--color-text-secondary)]">Tiene
-              Crédito</label>
+            <label for="client-has-credit" class="ml-2 block text-sm text-[var(--color-text-secondary)]">Tiene Crédito</label>
           </div>
           <div id="credit-limit-container" class="hidden">
-            <label for="client-credit-limit" class="block text-sm font-medium text-[var(--color-text-secondary)]">Límite
-              de Crédito</label>
+            <label for="client-credit-limit" class="block text-sm font-medium text-[var(--color-text-secondary)]">Límite de Crédito</label>
             <input type="number" step="0.01" id="client-credit-limit" name="limite_credito" value="0.00"
               class="mt-1 block w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
           </div>
@@ -439,48 +324,18 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       </div>
     </div>
   </div>
-
-  <!-- Modal: Seleccionar cliente para duplicar -->
-  <div id="duplicate-client-modal" class="fixed inset-0 z-[100] flex items-center justify-center modal-overlay hidden">
-    <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-lg">
-      <div class="p-6 border-b border-[var(--color-border)]">
-        <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Duplicar venta</h2>
-      </div>
-      <div class="p-6 space-y-4">
-        <p class="text-[var(--color-text-secondary)]">Selecciona el cliente destino para la nueva venta. También puedes
-          crear uno nuevo.</p>
-        <div>
-          <label for="duplicate-client-select"
-            class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Cliente</label>
-          <select id="duplicate-client-select" class="w-full"></select>
-        </div>
-      </div>
-      <div class="p-6 bg-[var(--color-bg-primary)] flex justify-between items-center rounded-b-lg">
-        <button type="button" id="duplicate-add-new-client-btn"
-          class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Añadir nuevo cliente</button>
-        <div class="space-x-3">
-          <button type="button" id="duplicate-modal-cancel-btn"
-            class="bg-[var(--color-border)] hover:bg-[var(--color-text-secondary)] text-[var(--color-text-primary)] font-bold py-2 px-4 rounded-lg">Cancelar</button>
-          <button type="button" id="duplicate-modal-confirm-btn"
-            class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg">Continuar</button>
-        </div>
-      </div>
-    </div>
-  </div>
   <div id="pending-sales-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden">
     <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-4xl">
       <div class="p-6 border-b border-[var(--color-border)] flex justify-between items-center">
         <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Ventas Guardadas</h2>
-        <button id="close-pending-sales-modal-btn"
-          class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
+        <button id="close-pending-sales-modal-btn" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
       </div>
       <div class="p-6">
         <input type="text" id="search-pending-sale" placeholder="Buscar por folio o cliente..."
           class="w-full bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 mb-4 border border-[var(--color-border)] focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]" />
         <div class="max-h-[60vh] overflow-y-auto pending-sales-table-wrapper">
           <table class="min-w-full">
-            <thead
-              class="bg-[var(--color-bg-primary)] text-xs text-[var(--color-text-secondary)] uppercase sticky top-0">
+            <thead class="bg-[var(--color-bg-primary)] text-xs text-[var(--color-text-secondary)] uppercase sticky top-0">
               <tr>
                 <th class="py-2 px-4 text-left">Folio</th>
                 <th class="py-2 px-4 text-left">Fecha</th>
@@ -500,8 +355,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col">
       <div class="p-6 border-b border-[var(--color-border)] flex justify-between items-center">
         <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Consultar Stock en Sucursales</h2>
-        <button id="close-stock-checker-modal-btn"
-          class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
+        <button id="close-stock-checker-modal-btn" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
       </div>
       <div class="p-6">
         <input type="text" id="stock-checker-search-input" placeholder="Buscar por nombre, SKU o código de barras..."
@@ -518,8 +372,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl p-8 w-full max-w-md">
       <div class="flex justify-between items-center mb-6">
         <h3 class="text-2xl font-bold text-[var(--color-text-primary)]">Registrar Apertura de Caja</h3>
-        <button id="closeCashModalBtn"
-          class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
+        <button id="closeCashModalBtn" class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
       </div>
       <div id="modal-error-message"
         class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 hidden" role="alert">
@@ -527,8 +380,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
       </div>
       <form id="cashOpeningForm">
         <div class="mb-4">
-          <label for="monto_inicial" class="block text-[var(--color-text-secondary)] text-sm font-bold mb-2">Monto
-            Inicial:</label>
+          <label for="monto_inicial" class="block text-[var(--color-text-secondary)] text-sm font-bold mb-2">Monto Inicial:</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-[var(--color-text-secondary)]">$</span>
             <input type="text" id="monto_inicial" name="monto_inicial" required
@@ -537,8 +389,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
           </div>
         </div>
         <div class="mb-6">
-          <label for="fecha_apertura" class="block text-[var(--color-text-secondary)] text-sm font-bold mb-2">Fecha de
-            Apertura:</label>
+          <label for="fecha_apertura" class="block text-[var(--color-text-secondary)] text-sm font-bold mb-2">Fecha de Apertura:</label>
           <input type="date" id="fecha_apertura" name="fecha_apertura" required
             class="shadow appearance-none border rounded w-full py-2 px-3 bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] border-[var(--color-border)] leading-tight focus:outline-none focus:ring-[var(--color-accent)] focus:border-[var(--color-accent)]">
         </div>
@@ -575,7 +426,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
   <script src="js/confirm.js"></script>
   <script src="js/pos.js"></script>
   <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
       const mobileMenuButton = document.getElementById('mobile-menu-button');
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebar-overlay');

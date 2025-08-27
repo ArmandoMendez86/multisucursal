@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const montoInput = document.getElementById('monto_inicial');
   const fechaInput = document.getElementById('fecha_apertura');
   const modalErrorMessage = document.getElementById('modal-error-message');
-
+  
   let montoInicialAn;
 
   let allProducts = [];
@@ -202,10 +202,10 @@ document.addEventListener("DOMContentLoaded", function () {
       productCard.dataset.productId = product.id;
       productCard.title = String(product.nombre || '');
       productCard.setAttribute('aria-label', productCard.title);
-      const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(product.nombre.substring(0, 8))}`;
+      const imageUrl = (product.imagen_url && typeof product.imagen_url === "string") ? (product.imagen_url.startsWith("http") ? product.imagen_url : `${BASE_URL}/public${product.imagen_url}`) : `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent((product.nombre||"").substring(0,8))}`;
       const stockClass = isOutOfStock ? 'zero-stock' : '';
       const stockText = isOutOfStock ? 'Agotado' : `Stock: ${stock}`;
-
+      
       productCard.innerHTML = `
           <img src="${imageUrl}" alt="${product.nombre}" class="product-card-image w-[70px] h-[70px] object-cover rounded-md mx-auto mb-2 shadow-sm">
           <div class="flex-1 flex flex-col justify-between">
@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function () {
       filteredCart.forEach((item) => {
         const cartItem = document.createElement("div");
         cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
-        const imageUrl = `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent(item.nombre.substring(0, 5))}`;
+        const imageUrl = (item.imagen_url && typeof item.imagen_url === "string") ? (item.imagen_url.startsWith("http") ? item.imagen_url : `${BASE_URL}/public${item.imagen_url}`) : `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent((item.nombre||"").substring(0,5))}`;
         let priceTypeLabel = "";
         if (item.tipo_precio_aplicado === "Especial") {
           priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';
@@ -676,7 +676,7 @@ document.addEventListener("DOMContentLoaded", function () {
     amountInput.addEventListener("input", updatePaymentTotals);
     methodSelect.addEventListener("change", () => {
       if (methodSelect.value === "Crédito") {
-        const totalToPay = parseFloat(totalElem.textContent.replace(/[\$,]/g, ""));
+        const totalToPay = parseFloat(totalElem.textContent.replace("$", ""));
         const currentNonCreditPaid = getCurrentNonCreditPaidAmount(amountInput);
         const remainingToPay = totalToPay - currentNonCreditPaid;
         if (selectedClient.id === 1) {
@@ -700,7 +700,7 @@ document.addEventListener("DOMContentLoaded", function () {
       } else {
         const hasCreditPaymentAlready = Array.from(document.querySelectorAll(".payment-method-select")).some((select) => select.value === "Crédito" && select !== methodSelect);
         if (paymentInputs.length === 1 || !hasCreditPaymentAlready) {
-          const totalToPay = parseFloat(totalElem.textContent.replace(/[\$,]/g, ""));
+          const totalToPay = parseFloat(totalElem.textContent.replace("$", ""));
           const currentNonCreditPaid = getCurrentNonCreditPaidAmount(amountInput);
           amountInput.value = (totalToPay - currentNonCreditPaid).toFixed(2);
         }
@@ -1014,103 +1014,28 @@ document.addEventListener("DOMContentLoaded", function () {
     renderCart();
     showToast(`Venta #${currentSaleId} cargada en el POS.`, "info");
   }
-
-
-  async function promptForDuplicateClient() {
-    return new Promise((resolve) => {
-      // Obtenemos referencias a los elementos del modal que está en pos.php
-      const modal = document.getElementById('duplicate-client-modal');
-      const selectElement = modal.querySelector('#duplicate-client-select');
-      const confirmBtn = modal.querySelector('#duplicate-modal-confirm-btn');
-      const cancelBtn = modal.querySelector('#duplicate-modal-cancel-btn');
-      const addNewClientBtn = modal.querySelector('#duplicate-add-new-client-btn');
-
-      const $select = $(selectElement);
-
-      // Función para limpiar todo (eventos y Select2) y cerrar el modal
-      const cleanup = () => {
-        modal.classList.add('hidden');
-        confirmBtn.removeEventListener('click', onConfirm);
-        cancelBtn.removeEventListener('click', onCancel);
-        addNewClientBtn.removeEventListener('click', onAddNew);
-        // Destruir la instancia de Select2 para evitar problemas de memoria
-        if ($select.data('select2')) {
-          $select.select2('destroy');
-        }
-        $select.empty(); // Limpiar opciones
-      };
-
-      // Manejadores de eventos
-      const onConfirm = () => {
-        const selectedId = $select.val() ? parseInt($select.val(), 10) : null;
-        cleanup();
-        resolve(selectedId);
-      };
-
-      const onCancel = () => {
-        cleanup();
-        resolve(null);
-      };
-
-      const onAddNew = () => {
-        showAddClientModal(); // Reutilizamos el modal de añadir cliente
-        // Escuchamos el evento personalizado que se dispara cuando un cliente se crea
-        document.addEventListener('pos:new-client-created', function onNewClient(e) {
-          const newClient = e.detail;
-          if (newClient && newClient.id && newClient.nombre) {
-            // Creamos la nueva opción, la seleccionamos y actualizamos Select2
-            const option = new Option(newClient.nombre, newClient.id, true, true);
-            $select.append(option).trigger('change');
-          }
-        }, { once: true }); // 'once: true' asegura que el evento se escuche solo una vez
-      };
-
-      // Asignamos los eventos a los botones
-      confirmBtn.addEventListener('click', onConfirm);
-      cancelBtn.addEventListener('click', onCancel);
-      addNewClientBtn.addEventListener('click', onAddNew);
-
-      // Inicializamos Select2 usando la función reutilizable que ya tienes
-      initClientSelect2($select, modal);
-
-      // Pre-cargamos la opción "Público en General" por defecto
-      const defaultOption = new Option("Público en General", 1, true, true);
-      $select.append(defaultOption).trigger('change');
-
-      // Mostramos el modal
-      modal.classList.remove('hidden');
-
-      // Abrimos el buscador de Select2 y ponemos el foco para escribir
-      $select.select2('open');
-    });
-  }
-
+  
   async function handleDuplicateSale(saleId) {
-    // Pedimos cliente destino
-    const idClienteDestino = await promptForDuplicateClient();
-    if (idClienteDestino === null) {
-      return; // cancelado
-    }
+    const confirmed = await showConfirm("¿Deseas crear una copia de esta venta? Se creará una nueva venta pendiente con los mismos productos.");
+    if (!confirmed) return;
 
     try {
-      const response = await fetch(`${BASE_URL}/duplicateSale`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id_venta: saleId, id_cliente: idClienteDestino })
-      });
-      const result = await response.json();
-      if (result.success) {
-        showToast(`Venta #${saleId} duplicada. Nuevo folio: #${result.new_sale_id}`, 'success');
-        openPendingSalesModal();
-      } else {
-        showToast(result.message || 'No se pudo duplicar la venta.', 'error');
-      }
+        const response = await fetch(`${BASE_URL}/duplicateSale`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_venta: saleId })
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast(`Venta #${saleId} duplicada. Nuevo folio: #${result.new_sale_id}`, 'success');
+            openPendingSalesModal();
+        } else {
+            showToast(result.message, 'error');
+        }
     } catch (error) {
-      console.error(error);
-      showToast('Error de conexión al duplicar la venta.', 'error');
+        showToast('Error de conexión al duplicar la venta.', 'error');
     }
   }
-
 
   async function handleDeletePendingSale(saleId) {
     const confirmed = await showConfirm("¿Estás seguro de que quieres eliminar esta venta pendiente? Esta acción es irreversible.");
@@ -1137,18 +1062,10 @@ document.addEventListener("DOMContentLoaded", function () {
     addClientModal.classList.remove("hidden");
     addClientForm.reset();
     creditLimitContainer.classList.add("hidden");
-    // asegurar que quede encima del overlay del modal de duplicado
-    addClientModal.style.zIndex = "120";
-    // enfocar primer campo
-    setTimeout(() => {
-      const first = addClientForm.querySelector("input, select, textarea");
-      if (first) first.focus();
-    }, 0);
   }
 
   function hideAddClientModal() {
     addClientModal.classList.add("hidden");
-    addClientModal.style.zIndex = "";
   }
 
   async function handleAddNewClient(event) {
@@ -1175,7 +1092,6 @@ document.addEventListener("DOMContentLoaded", function () {
           text: clientData.nombre,
           original: { id: result.id, nombre: clientData.nombre, tiene_credito: clientData.tiene_credito, limite_credito: clientData.limite_credito, deuda_actual: 0.0 },
         };
-        document.dispatchEvent(new CustomEvent('pos:new-client-created', { detail: { id: result.id, nombre: clientData.nombre } }));
         const option = new Option(newClient.text, newClient.id, true, true);
         searchClientSelect.append(option).trigger("change");
         searchClientSelect.trigger({ type: "select2:select", params: { data: newClient } });
@@ -1209,7 +1125,7 @@ document.addEventListener("DOMContentLoaded", function () {
     cashOpeningForm.addEventListener('submit', async (event) => {
       event.preventDefault();
       modalErrorMessage.classList.add('hidden');
-
+      
       const monto = montoInicialAn.getNumericString();
       const fecha = fechaInput.value;
 
@@ -1433,9 +1349,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const quantityButton = event.target.closest(".quantity-change");
     const removeButton = event.target.closest(".remove-item-btn");
     if (quantityButton) {
-      handleQuantityChange(event);
+        handleQuantityChange(event);
     } else if (removeButton) {
-      removeProductFromCart(removeButton.dataset.id);
+        removeProductFromCart(removeButton.dataset.id);
     }
   });
   cartItemsContainer.addEventListener("input", handleQuantityInput);
@@ -1518,58 +1434,49 @@ document.addEventListener("DOMContentLoaded", function () {
   searchProductInput.addEventListener("input", filterProducts);
   searchProductInput.addEventListener("keydown", handleBarcodeScan);
 
-
-  // Reutilizable: configura Select2 para buscar clientes (carrito y modales)
-  function initClientSelect2($el, dropdownParentEl = null) {
-    const config = {
-      width: "100%",
-      placeholder: "Buscar cliente por nombre, RFC o teléfono...",
-      minimumInputLength: 2,
-      language: {
-        inputTooShort: () => "Por favor, introduce 2 o más caracteres para buscar.",
-        noResults: () => "No se encontraron resultados.",
-        searching: () => "Buscando...",
-      },
-      ajax: {
-        url: `${BASE_URL}/searchClients`,
-        dataType: "json",
-        delay: 250,
-        data: (params) => ({ term: params.term }),
-        processResults: (data) => ({
-          results: (data.results || []).map((client) => ({
-            id: client.id,
-            text: client.text,
-            original: client,
-          })),
-        }),
-        cache: true,
-      },
-    };
-    if (dropdownParentEl) config.dropdownParent = $(dropdownParentEl);
-    return $el.select2(config);
-  }
-  initClientSelect2(searchClientSelect, null).on("select2:select", (e) => { /* handled below */ });
-  // Reemplazado por initClientSelect2
-  /* ORIGINAL REMOVED */
-  initClientSelect2(searchClientSelect, null).on("select2:select", (e) => {
+  searchClientSelect.select2({
+    width: "100%",
+    placeholder: "Buscar cliente por nombre, RFC o teléfono...",
+    minimumInputLength: 2,
+    language: {
+      inputTooShort: () => "Por favor, introduce 2 o más caracteres para buscar.",
+      noResults: () => "No se encontraron resultados.",
+      searching: () => "Buscando...",
+    },
+    ajax: {
+      url: `${BASE_URL}/searchClients`,
+      dataType: "json",
+      delay: 250,
+      data: (params) => ({ term: params.term }),
+      processResults: (data) => ({
+        results: data.results.map((client) => ({
+          id: client.id,
+          text: client.text,
+          original: client,
+        })),
+      }),
+      cache: true,
+    },
+  }).on("select2:select", (e) => {
     const selectedData = e.params.data;
     const clientToSelect = selectedData.original || { id: selectedData.id, nombre: selectedData.text };
     selectClient(clientToSelect);
   });
+
   function initializePOS() {
     fetchPrintPrefs();
     fetchProducts();
     toggleSaveButton();
     setupCashOpeningModal();
-
+    
     if (montoInput) {
-      montoInicialAn = new AutoNumeric(montoInput, {
-        currencySymbol: '',
-        decimalCharacter: '.',
-        digitGroupSeparator: ',',
-        decimalPlaces: 2,
-        minimumValue: '0'
-      });
+        montoInicialAn = new AutoNumeric(montoInput, {
+            currencySymbol: '',
+            decimalCharacter: '.',
+            digitGroupSeparator: ',',
+            decimalPlaces: 2,
+            minimumValue: '0'
+        });
     }
   }
 

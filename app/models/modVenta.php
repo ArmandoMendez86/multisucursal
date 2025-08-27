@@ -122,7 +122,7 @@ class Venta
      * @return int|false El ID de la nueva venta creada, o false si falla.
      * @throws Exception Si ocurre un error en la base de datos.
      */
-    public function duplicateById($id_venta_original, $id_usuario, $id_sucursal, $id_cliente_destino = null)
+    public function duplicateById($id_venta_original, $id_usuario, $id_sucursal)
     {
         try {
             $this->conn->beginTransaction();
@@ -140,12 +140,9 @@ class Venta
             // 2. Crear una nueva cabecera de venta
             $stmt_new_venta = $this->conn->prepare(
                 "INSERT INTO ventas (id_cliente, id_usuario, id_sucursal, id_direccion_envio, total, iva_aplicado, estado) 
-             VALUES (:id_cliente, :id_usuario, :id_sucursal, :id_direccion_envio, :total, :iva_aplicado, 'Pendiente')"
+                 VALUES (:id_cliente, :id_usuario, :id_sucursal, :id_direccion_envio, :total, :iva_aplicado, 'Pendiente')"
             );
-
-            // --- CORRECCIÓN AQUÍ ---
-            $stmt_new_venta->bindValue(':id_cliente', $id_cliente_destino !== null ? $id_cliente_destino : $original_header['id_cliente']);
-
+            $stmt_new_venta->bindParam(':id_cliente', $original_header['id_cliente']);
             $stmt_new_venta->bindParam(':id_usuario', $id_usuario); // Usuario actual
             $stmt_new_venta->bindParam(':id_sucursal', $id_sucursal); // Sucursal actual
             $stmt_new_venta->bindParam(':id_direccion_envio', $original_header['id_direccion_envio']);
@@ -163,7 +160,7 @@ class Venta
             // 4. Insertar los detalles en la nueva venta
             $stmt_new_detail = $this->conn->prepare(
                 "INSERT INTO venta_detalles (id_venta, id_producto, cantidad, precio_unitario, subtotal) 
-             VALUES (:id_venta, :id_producto, :cantidad, :precio_unitario, :subtotal)"
+                 VALUES (:id_venta, :id_producto, :cantidad, :precio_unitario, :subtotal)"
             );
 
             foreach ($original_details as $item) {
@@ -205,8 +202,7 @@ class Venta
         $stmt_venta->execute();
         $resultado['header'] = $stmt_venta->fetch(PDO::FETCH_ASSOC);
 
-        if (!$resultado['header'])
-            return null;
+        if (!$resultado['header']) return null;
 
         $query_items = "SELECT vd.*, p.nombre, p.precio_menudeo, p.precio_mayoreo, p.sku,
                                GROUP_CONCAT(pc.codigo_barras SEPARATOR ', ') AS codigos_barras
@@ -315,7 +311,7 @@ class Venta
                 $creditPaymentAmount = 0;
                 foreach ($payments as $payment) {
                     if ($payment['method'] === 'Crédito') {
-                        $creditPaymentAmount += (float) $payment['amount'];
+                        $creditPaymentAmount += (float)$payment['amount'];
                     }
                 }
 

@@ -18,10 +18,22 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         }
 
         /* --- Estilos Generales y Scrollbar con Variables de Tema --- */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: var(--color-bg-primary); }
-        ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--color-text-secondary); }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--color-bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--color-border);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-text-secondary);
+        }
 
         /* --- Estilos para DataTables adaptados al tema --- */
         .dataTables_wrapper .dataTables_filter input,
@@ -52,7 +64,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
             color: var(--color-text-secondary) !important;
         }
-        
+
         .dataTables_wrapper .dataTables_paginate .paginate_button.current {
             background: var(--color-accent) !important;
             border-color: var(--color-accent) !important;
@@ -62,7 +74,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         table.dataTable thead th {
             border-bottom: 2px solid var(--color-border) !important;
         }
-        
+
         table.dataTable tbody tr {
             background-color: var(--color-bg-secondary);
         }
@@ -70,7 +82,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
         table.dataTable tbody tr:hover {
             background-color: var(--color-bg-primary);
         }
-        
+
         table.dataTable tbody td {
             border-bottom: 1px solid var(--color-border);
         }
@@ -104,19 +116,27 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
 
         <!-- Contenido Principal -->
         <main class="flex-1 p-8 overflow-y-auto">
-            <header class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
+            <header
+                class="lg:hidden flex items-center justify-between bg-[var(--color-bg-secondary)] p-4 shadow-md flex-shrink-0">
                 <button id="mobile-menu-button" class="text-[var(--color-text-primary)] focus:outline-none">
                     <i class="fas fa-bars text-2xl"></i>
                 </button>
                 <h1 class="text-lg font-bold text-[var(--color-text-primary)]">Reportes</h1>
                 <div class="w-8"></div>
             </header>
-            <h1 class="text-3xl font-bold text-[var(--color-text-primary)] mb-8">Reportes y Análisis</h1>
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-[var(--color-text-primary)]">Reportes y Análisis</h1>
+
+                <button id="config-printer-btn"
+                    class="text-[var(--color-text-secondary)] hover:text-white transition-colors duration-200">
+                    <i class="fas fa-cog text-xl"></i>
+                </button>
+            </div>
 
             <!-- Sección de Reporte de Ventas -->
             <div class="bg-[var(--color-bg-secondary)] p-6 rounded-lg mb-8">
                 <h2 class="text-xl font-semibold text-[var(--color-text-primary)] mb-4">Reporte de Ventas</h2>
-                
+
                 <!-- Tabla de Reporte -->
                 <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow overflow-auto mb-8 p-4">
                     <table id="tablaVentas" class="min-w-full">
@@ -144,18 +164,24 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                 <!-- Filtros para el Corte de Caja -->
                 <div class="flex flex-wrap items-end gap-4 mb-6">
                     <div>
-                        <label for="cash-cut-date" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Fecha del Corte</label>
+                        <label for="cash-cut-date"
+                            class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Fecha del
+                            Corte</label>
                         <input type="date" id="cash-cut-date"
                             class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)]">
                     </div>
                     <div>
-                        <label for="initial-cash" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Caja Inicial</label>
+                        <label for="initial-cash"
+                            class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Caja
+                            Inicial</label>
                         <input type="number" id="initial-cash" value="0.00" step="0.01"
                             class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)] w-32">
                     </div>
                     <?php if (isset($_SESSION['rol']) && $_SESSION['rol'] === 'Administrador'): ?>
                         <div>
-                            <label for="user-filter-select" class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Filtrar por Usuario</label>
+                            <label for="user-filter-select"
+                                class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Filtrar por
+                                Usuario</label>
                             <select id="user-filter-select"
                                 class="bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] rounded-md p-2 border border-[var(--color-border)]">
                                 <option value="all">General (Toda la Sucursal)</option>
@@ -163,7 +189,8 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                         </div>
                     <?php endif; ?>
                     <button id="generate-cash-cut-btn"
-                        class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Generar Corte de Caja</button>
+                        class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Generar Corte de
+                        Caja</button>
                     <button id="print-cash-cut-btn"
                         class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded-lg flex items-center">
                         <i class="fas fa-print mr-2"></i> Imprimir Corte
@@ -171,7 +198,39 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
                 </div>
                 <!-- Aquí irán los resultados del corte -->
                 <div id="cash-cut-results" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <p class="text-[var(--color-text-secondary)] col-span-full">Seleccione una fecha para generar el corte de caja.</p>
+                    <p class="text-[var(--color-text-secondary)] col-span-full">Seleccione una fecha para generar el
+                        corte de caja.</p>
+                </div>
+            </div>
+            <div id="printer-config-modal"
+                class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center hidden z-50">
+                <div class="bg-[var(--color-bg-primary)] p-6 rounded-lg shadow-xl w-full max-w-md">
+                    <h3 class="text-xl font-bold mb-4">Configurar Método de Impresión</h3>
+                    <p class="text-sm text-[var(--color-text-secondary)] mb-6">
+                        Elige el método que prefieras para imprimir tickets y reportes desde esta sección.
+                    </p>
+
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input type="radio" id="print-method-service" name="print_method_reportes" value="service"
+                                class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="print-method-service" class="ml-3 block text-sm font-medium">
+                                Servicio de Impresión Local (Recomendado)
+                            </label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="radio" id="print-method-qztray" name="print_method_reportes" value="qztray"
+                                class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                            <label for="print-method-qztray" class="ml-3 block text-sm font-medium">
+                                QZ Tray (Conexión directa a la impresora)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 flex justify-end space-x-3">
+                        <button id="cancel-printer-config-btn" class="btn-secondary">Cancelar</button>
+                        <button id="save-printer-config-btn" class="btn-primary">Guardar Cambios</button>
+                    </div>
                 </div>
             </div>
         </main>
@@ -195,7 +254,7 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <script src="js/confirm.js"></script>
     <script src="js/reportes.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const mobileMenuButton = document.getElementById('mobile-menu-button');
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebar-overlay');

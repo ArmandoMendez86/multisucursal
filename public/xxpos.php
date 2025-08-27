@@ -441,29 +441,26 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
   </div>
 
   <!-- Modal: Seleccionar cliente para duplicar -->
-  <div id="duplicate-client-modal" class="fixed inset-0 z-[100] flex items-center justify-center modal-overlay hidden">
+  <div id="duplicate-client-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden">
     <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-lg">
-      <div class="p-6 border-b border-[var(--color-border)]">
-        <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Duplicar venta</h2>
+      <div class="p-6 border-b border-[var(--color-border)] flex justify-between items-center">
+        <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Duplicar venta a cliente</h2>
+        <button id="duplicate-cancel-btn"
+          class="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] text-2xl">&times;</button>
       </div>
       <div class="p-6 space-y-4">
-        <p class="text-[var(--color-text-secondary)]">Selecciona el cliente destino para la nueva venta. También puedes
-          crear uno nuevo.</p>
-        <div>
-          <label for="duplicate-client-select"
-            class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Cliente</label>
-          <select id="duplicate-client-select" class="w-full"></select>
+        <label for="duplicate-client-select"
+          class="block text-sm font-medium text-[var(--color-text-secondary)]">Cliente destino</label>
+        <select id="duplicate-client-select" class="w-full"></select>
+        <div class="flex justify-between items-center">
+          <span class="text-xs text-[var(--color-text-secondary)]">Busca un cliente o añade uno nuevo.</span>
+          <button type="button" id="duplicate-open-add-client"
+            class="text-[var(--color-accent)] hover:underline text-sm">Añadir nuevo cliente</button>
         </div>
       </div>
-      <div class="p-6 bg-[var(--color-bg-primary)] flex justify-between items-center rounded-b-lg">
-        <button type="button" id="duplicate-add-new-client-btn"
-          class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Añadir nuevo cliente</button>
-        <div class="space-x-3">
-          <button type="button" id="duplicate-modal-cancel-btn"
-            class="bg-[var(--color-border)] hover:bg-[var(--color-text-secondary)] text-[var(--color-text-primary)] font-bold py-2 px-4 rounded-lg">Cancelar</button>
-          <button type="button" id="duplicate-modal-confirm-btn"
-            class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg">Continuar</button>
-        </div>
+      <div class="p-6 bg-[var(--color-bg-primary)] flex justify-end space-x-4 rounded-b-lg">
+        <button id="duplicate-confirm-btn" type="button"
+          class="bg-[var(--color-accent)] hover:bg-[var(--color-accent-hover)] text-white font-bold py-2 px-6 rounded-lg">Duplicar</button>
       </div>
     </div>
   </div>

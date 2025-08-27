@@ -1016,78 +1016,114 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
 
-  async function promptForDuplicateClient() {
+  async function showDuplicateClientModal() {
     return new Promise((resolve) => {
-      // Obtenemos referencias a los elementos del modal que está en pos.php
-      const modal = document.getElementById('duplicate-client-modal');
-      const selectElement = modal.querySelector('#duplicate-client-select');
-      const confirmBtn = modal.querySelector('#duplicate-modal-confirm-btn');
-      const cancelBtn = modal.querySelector('#duplicate-modal-cancel-btn');
-      const addNewClientBtn = modal.querySelector('#duplicate-add-new-client-btn');
+      const overlay = document.createElement('div');
+      overlay.className = 'fixed inset-0 z-[95] flex items-center justify-center bg-black bg-opacity-75';
+      const modal = document.createElement('div');
+      modal.className = 'bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-lg p-6';
+      modal.innerHTML = `
+      <h2 class="text-2xl font-bold text-[var(--color-text-primary)] mb-4">Duplicar venta</h2>
+      <p class="text-[var(--color-text-secondary)] mb-4">Selecciona el cliente destino para la nueva venta. También puedes crear uno nuevo.</p>
+      <label class="block text-sm font-medium text-[var(--color-text-secondary)] mb-1">Cliente</label>
+      <select id="duplicate-client-select" class="w-full"></select>
+      <div class="flex justify-between mt-6">
+        <button id="duplicate-new-client-btn" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg">Añadir nuevo cliente</button>
+        <div class="space-x-3">
+          <button id="duplicate-cancel-btn" class="bg-[var(--color-border)] hover:bg-[var(--color-border)]/70 text-[var(--color-text-primary)] font-bold py-2 px-4 rounded-lg">Cancelar</button>
+          <button id="duplicate-continue-btn" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-6 rounded-lg">Continuar</button>
+        </div>
+      </div>
+    `;
+      overlay.appendChild(modal);
+      document.body.appendChild(overlay);
 
-      const $select = $(selectElement);
+      // Inicializar select2 igual que el selector principal
+      const $dup = $("#duplicate-client-select").select2({
+        width: "100%",
+        dropdownParent: $(modal),
+        placeholder: "Buscar cliente por nombre, RFC o teléfono...",
+        minimumInputLength: 0,
+        language: {
+          inputTooShort: () => "",
+          noResults: () => "No se encontraron resultados.",
+          searching: () => "Buscando...",
+        },
+        ajax: {
+          url: `${BASE_URL}/searchClients`,
+          dataType: "json",
+          delay: 250,
+          data: (params) => ({ term: (params.term || "").trim() }),
+          processResults: (data) => ({
+            results: (data.results || []).map((client) => ({
+              id: client.id,
+              text: client.text,
+              original: client,
+            })),
+          }),
+          cache: true,
+        },
+      });
 
-      // Función para limpiar todo (eventos y Select2) y cerrar el modal
-      const cleanup = () => {
-        modal.classList.add('hidden');
-        confirmBtn.removeEventListener('click', onConfirm);
-        cancelBtn.removeEventListener('click', onCancel);
-        addNewClientBtn.removeEventListener('click', onAddNew);
-        // Destruir la instancia de Select2 para evitar problemas de memoria
-        if ($select.data('select2')) {
-          $select.select2('destroy');
+      // Abrir de inmediato y enfocar la caja de búsqueda
+      $dup.select2("open");
+      $dup.on("select2:open", () => {
+        const input = document.querySelector('.select2-container--open .select2-search__field');
+        if (input) input.focus();
+        // Dispara una consulta inicial vacía para que el backend devuelva sugerencias por defecto
+        if (input && input.value === "") {
+          const ev = new Event('input', { bubbles: true });
+          input.value = " "; // espacio
+          input.dispatchEvent(ev);
+          input.value = ""; // limpiar
         }
-        $select.empty(); // Limpiar opciones
-      };
+      });
 
-      // Manejadores de eventos
-      const onConfirm = () => {
-        const selectedId = $select.val() ? parseInt($select.val(), 10) : null;
-        cleanup();
-        resolve(selectedId);
-      };
+      // Prefijar con el cliente actualmente seleccionado en el POS
+      if (typeof selectedClient !== 'undefined' && selectedClient && selectedClient.id) {
+        const opt = new Option(selectedClient.nombre || "Público en General", selectedClient.id, true, true);
+        $dup.append(opt).trigger("change");
+      } else {
+        const opt = new Option("Público en General", 1, true, true);
+        $dup.append(opt).trigger("change");
+      }
 
-      const onCancel = () => {
+      function cleanup() {
+        $dup.select2('destroy');
+        document.body.removeChild(overlay);
+      }
+
+      modal.querySelector('#duplicate-cancel-btn').addEventListener('click', () => {
         cleanup();
         resolve(null);
-      };
+      });
 
-      const onAddNew = () => {
-        showAddClientModal(); // Reutilizamos el modal de añadir cliente
-        // Escuchamos el evento personalizado que se dispara cuando un cliente se crea
+      modal.querySelector('#duplicate-continue-btn').addEventListener('click', () => {
+        const val = $dup.val() ? parseInt($dup.val(), 10) : null;
+        cleanup();
+        resolve(val);
+      });
+
+      modal.querySelector('#duplicate-new-client-btn').addEventListener('click', () => {
+        // Abrimos el modal existente de alta de clientes
+        showAddClientModal();
+        // Cuando se cierre el modal de alta, si se creó un cliente nuevo, lo insertamos aquí.
+        // Nos apoyamos en un evento personalizado que disparamos al crear cliente.
         document.addEventListener('pos:new-client-created', function onNewClient(e) {
-          const newClient = e.detail;
-          if (newClient && newClient.id && newClient.nombre) {
-            // Creamos la nueva opción, la seleccionamos y actualizamos Select2
-            const option = new Option(newClient.nombre, newClient.id, true, true);
-            $select.append(option).trigger('change');
+          document.removeEventListener('pos:new-client-created', onNewClient);
+          const data = e.detail;
+          if (data && data.id && data.nombre) {
+            const opt2 = new Option(data.nombre, data.id, true, true);
+            $dup.append(opt2).trigger('change');
           }
-        }, { once: true }); // 'once: true' asegura que el evento se escuche solo una vez
-      };
-
-      // Asignamos los eventos a los botones
-      confirmBtn.addEventListener('click', onConfirm);
-      cancelBtn.addEventListener('click', onCancel);
-      addNewClientBtn.addEventListener('click', onAddNew);
-
-      // Inicializamos Select2 usando la función reutilizable que ya tienes
-      initClientSelect2($select, modal);
-
-      // Pre-cargamos la opción "Público en General" por defecto
-      const defaultOption = new Option("Público en General", 1, true, true);
-      $select.append(defaultOption).trigger('change');
-
-      // Mostramos el modal
-      modal.classList.remove('hidden');
-
-      // Abrimos el buscador de Select2 y ponemos el foco para escribir
-      $select.select2('open');
+        }, { once: true });
+      });
     });
   }
 
   async function handleDuplicateSale(saleId) {
     // Pedimos cliente destino
-    const idClienteDestino = await promptForDuplicateClient();
+    const idClienteDestino = await showDuplicateClientModal();
     if (idClienteDestino === null) {
       return; // cancelado
     }
@@ -1137,9 +1173,9 @@ document.addEventListener("DOMContentLoaded", function () {
     addClientModal.classList.remove("hidden");
     addClientForm.reset();
     creditLimitContainer.classList.add("hidden");
-    // asegurar que quede encima del overlay del modal de duplicado
+    // Elevar z-index por encima del overlay del modal de duplicado (z-[95])
     addClientModal.style.zIndex = "120";
-    // enfocar primer campo
+    // Enfocar el primer campo
     setTimeout(() => {
       const first = addClientForm.querySelector("input, select, textarea");
       if (first) first.focus();
@@ -1148,6 +1184,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function hideAddClientModal() {
     addClientModal.classList.add("hidden");
+    // Restaurar z-index a su valor por defecto
     addClientModal.style.zIndex = "";
   }
 
@@ -1518,44 +1555,35 @@ document.addEventListener("DOMContentLoaded", function () {
   searchProductInput.addEventListener("input", filterProducts);
   searchProductInput.addEventListener("keydown", handleBarcodeScan);
 
-
-  // Reutilizable: configura Select2 para buscar clientes (carrito y modales)
-  function initClientSelect2($el, dropdownParentEl = null) {
-    const config = {
-      width: "100%",
-      placeholder: "Buscar cliente por nombre, RFC o teléfono...",
-      minimumInputLength: 2,
-      language: {
-        inputTooShort: () => "Por favor, introduce 2 o más caracteres para buscar.",
-        noResults: () => "No se encontraron resultados.",
-        searching: () => "Buscando...",
-      },
-      ajax: {
-        url: `${BASE_URL}/searchClients`,
-        dataType: "json",
-        delay: 250,
-        data: (params) => ({ term: params.term }),
-        processResults: (data) => ({
-          results: (data.results || []).map((client) => ({
-            id: client.id,
-            text: client.text,
-            original: client,
-          })),
-        }),
-        cache: true,
-      },
-    };
-    if (dropdownParentEl) config.dropdownParent = $(dropdownParentEl);
-    return $el.select2(config);
-  }
-  initClientSelect2(searchClientSelect, null).on("select2:select", (e) => { /* handled below */ });
-  // Reemplazado por initClientSelect2
-  /* ORIGINAL REMOVED */
-  initClientSelect2(searchClientSelect, null).on("select2:select", (e) => {
+  searchClientSelect.select2({
+    width: "100%",
+    placeholder: "Buscar cliente por nombre, RFC o teléfono...",
+    minimumInputLength: 2,
+    language: {
+      inputTooShort: () => "Por favor, introduce 2 o más caracteres para buscar.",
+      noResults: () => "No se encontraron resultados.",
+      searching: () => "Buscando...",
+    },
+    ajax: {
+      url: `${BASE_URL}/searchClients`,
+      dataType: "json",
+      delay: 250,
+      data: (params) => ({ term: params.term }),
+      processResults: (data) => ({
+        results: data.results.map((client) => ({
+          id: client.id,
+          text: client.text,
+          original: client,
+        })),
+      }),
+      cache: true,
+    },
+  }).on("select2:select", (e) => {
     const selectedData = e.params.data;
     const clientToSelect = selectedData.original || { id: selectedData.id, nombre: selectedData.text };
     selectClient(clientToSelect);
   });
+
   function initializePOS() {
     fetchPrintPrefs();
     fetchProducts();

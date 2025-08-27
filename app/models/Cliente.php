@@ -61,8 +61,8 @@ class Cliente
             $stmtData->bindValue(':search_value', '%' . $searchValue . '%', PDO::PARAM_STR);
         }
         if (!empty($limitQuery)) {
-            $stmtData->bindValue(':limit', (int)$request['length'], PDO::PARAM_INT);
-            $stmtData->bindValue(':offset', (int)$request['start'], PDO::PARAM_INT);
+            $stmtData->bindValue(':limit', (int) $request['length'], PDO::PARAM_INT);
+            $stmtData->bindValue(':offset', (int) $request['start'], PDO::PARAM_INT);
         }
 
         $stmtData->execute();
@@ -70,7 +70,7 @@ class Cliente
 
         $data = [];
         foreach ($clients as $client) {
-            $deuda = (float)($client['deuda_actual'] ?? 0);
+            $deuda = (float) ($client['deuda_actual'] ?? 0);
             $hasDebt = $deuda > 0;
 
             $acciones = '';
@@ -323,4 +323,6 @@ class Cliente
         $stmt->bindParam(':id_cliente', $id_cliente, PDO::PARAM_INT);
         return $stmt->execute() && $stmt->rowCount() > 0;
     }
+
+   
 }
