@@ -20,9 +20,6 @@ document.addEventListener("DOMContentLoaded", function () {
         url: `${BASE_URL}/getSalesReportPaginated`,
         type: 'GET',
         data: function (d) {
-          // CORREGIDO: Ya no se leen los inputs de fecha que no existen.
-          // Los filtros de fecha se pueden manejar en el backend si es necesario,
-          // o se pueden volver a agregar al HTML. Por ahora, se eliminan del request.
           const userSel = document.getElementById('user-filter-select');
           d.user_id = userSel ? (userSel.value === 'all' ? '' : userSel.value) : '';
         }
@@ -78,9 +75,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (id) { handlePrintTicket(parseInt(id, 10)); }
     });
     $(document).on('click', '#tablaVentas .print-ticket-win-btn', async function (e) {
-      e.preventDefault();
-      const id = this.getAttribute('data-id');
-      if (id) { await handlePrintTicketViaDialog(parseInt(id, 10)); }
+        e.preventDefault();
+        const id = this.getAttribute('data-id');
+        if (id) { await handlePrintTicketViaDialog(parseInt(id, 10)); }
     });
     $(document).on('click', '#tablaVentas .view-pdf-btn', function (e) {
       e.preventDefault();
@@ -108,8 +105,12 @@ document.addEventListener("DOMContentLoaded", function () {
     isLoaded: false,
     isLoading: false
   };
+  let sucursalActual = {
+    nombre: 'Sucursal Principal',
+    direccion: '',
+    telefono: ''
+  };
 
-  // --- Lógica para el modal de configuración de impresora de reportes ---
   const configPrinterBtn = document.getElementById('config-printer-btn');
   const printerConfigModal = document.getElementById('printer-config-modal');
   const savePrinterConfigBtn = document.getElementById('save-printer-config-btn');
@@ -140,17 +141,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (savePrinterConfigBtn) {
     savePrinterConfigBtn.addEventListener('click', () => {
-      // Determinamos el método seleccionado en el modal
       const selectedMethod = radioService.checked ? 'service' : 'qztray';
-
-      // Guardamos la elección del usuario en localStorage para que tenga prioridad
       localStorage.setItem('reportesPrintMethod', selectedMethod);
-      printMethod = selectedMethod; // Actualizamos la variable global inmediatamente
-
+      printMethod = selectedMethod;
       showToast('Configuración de impresora guardada.', 'success');
       printerConfigModal.classList.add('hidden');
-
-      // Si eligen QZ Tray, intentamos conectar
       if (printMethod === 'qztray') {
         if (typeof connectQz === "function") {
           connectQz();
@@ -160,46 +155,27 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
   }
-  // --- Fin de la lógica del modal ---
 
   async function getPrintPrefs() {
     if (printerConfig.isLoading || printerConfig.isLoaded) return;
-
     printerConfig.isLoading = true;
-    console.log("Iniciando carga de preferencias de impresión...");
-
     try {
-      // Primero, revisamos si el usuario ya eligió un método y lo guardó.
       const localPrintMethod = localStorage.getItem('reportesPrintMethod');
-
-      // Hacemos la llamada a la BD para obtener el nombre de la impresora
       const response = await fetch(`${BASE_URL}/getPrintPrefs`);
       const result = await response.json();
-
       if (result.success && result.data) {
         printerConfig.name = result.data.impresora_tickets || null;
-
-        // Si NO hay nada en localStorage, usamos lo que venga de la BD.
         if (!localPrintMethod) {
           printMethod = result.data.print_method || 'service';
         }
-        // Si SÍ hay algo en localStorage, respetamos esa elección.
-        // La variable `printMethod` ya fue inicializada con ese valor.
-
-      } else {
-        console.warn("No se encontraron preferencias en la BD. Se usará la configuración local.");
       }
-
-      console.log("Preferencias cargadas:", { method: printMethod, printer: printerConfig.name });
-      updatePrinterMethodSelection(); // Sincroniza el modal con el método actual
-
+      updatePrinterMethodSelection();
     } catch (error) {
       console.error("No se pudo cargar las preferencias de impresión.", error);
       showToast("Error al cargar preferencias de impresión.", "error");
     } finally {
       printerConfig.isLoading = false;
       printerConfig.isLoaded = true;
-      console.log("Carga de preferencias de impresión finalizada.");
     }
   }
 
@@ -221,86 +197,293 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Leemos la preferencia del usuario para la impresión de reportes
+  async function fetchSucursalDetails() {
+    try {
+        const response = await fetch(`${BASE_URL}/getSucursalActual`);
+        const result = await response.json();
+        if (result.success && result.data) {
+            sucursalActual = result.data;
+        } else {
+            console.warn("No se pudieron cargar los detalles de la sucursal.");
+        }
+    } catch (error) {
+        console.error("Error de conexión al obtener detalles de la sucursal:", error);
+    }
+  }
+
   let printMethod = localStorage.getItem('reportesPrintMethod') || 'service';
 
-  // Solo cargamos los scripts y nos conectamos a QZ Tray si es el método seleccionado
   if (printMethod === 'qztray') {
     if (typeof connectQz === "function") {
       connectQz();
     }
   }
-  const ticketWidth = 32;
+  
+  const ticketWidth = 30;
   const removeAccents = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
-  const formatCurrencyForTicket = (value) => "$" + parseFloat(value).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const formatLine = (left, right = "", width = ticketWidth) => {
-    const leftClean = removeAccents(left);
-    const rightClean = removeAccents(right);
-    const padding = Math.max(0, width - leftClean.length - rightClean.length);
-    return leftClean + " ".repeat(padding) + rightClean + "\x0A";
-  };
-  const formatCentered = (text, width = ticketWidth) => {
-    const textClean = removeAccents(text);
-    const padding = Math.max(0, Math.floor((width - textClean.length) / 2));
-    return " ".repeat(padding) + textClean + " ".repeat(width - textClean.length - padding) + "\x0A";
+  const formatCurrencyForTicket = (value) => parseFloat(value).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  
+  const padLR = (left, right) => {
+      left = removeAccents(left || "");
+      right = removeAccents(right || "");
+      const padding = Math.max(0, ticketWidth - left.length - right.length);
+      return left + " ".repeat(padding) + right;
   };
 
-  async function printTicket(printerName, ticketData) {
-    if (!qzTrayConnected) {
-      showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
+  const padMultiple = (c1, c2, c3, c4) => {
+      const w1 = 5, w2 = 16, w3 = 8, w4 = 8;
+      c1 = (c1 || "").padEnd(w1);
+      c2 = (c2 || "").padEnd(w2);
+      c3 = (c3 || "").padStart(w3);
+      c4 = (c4 || "").padStart(w4);
+      const line = `${c1} ${c2}${c3}${c4}`;
+      return line.substring(0, ticketWidth);
+  };
+
+  async function printTicketQZ(printerName, ticketData) {
+      if (!qzTrayConnected) {
+          showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
+          return;
+      }
+      const config = qz.configs.create(printerName);
+      const venta = ticketData.venta || {};
+      const items = ticketData.items || [];
+      
+      const companyName = "MEGA PARTY GDL";
+      const companyRfc = "PIBP7906297W4";
+      const sucursalDireccion = venta.sucursal_direccion || "Dirección no disponible";
+
+      let dataToPrint = [
+          "\x1B\x40", // Reset
+          "\x1B\x74\x11", // Codepage CP850
+          "\x1B\x61\x01", // Center
+          "\x1B\x21\x08", // Bold
+          removeAccents(companyName) + "\x0A",
+          "\x1B\x21\x00", // Normal
+          removeAccents(companyRfc) + "\x0A",
+          removeAccents(sucursalDireccion) + "\x0A",
+          "\x0A",
+          removeAccents("FACTURA") + "\x0A",
+          removeAccents(`F${venta.id}`) + "\x0A",
+          "\x0A",
+          "\x1B\x61\x00", // Left align
+          "\x1B\x21\x08", // Bold
+          "ADQUIRIENTE\x0A",
+          "\x1B\x21\x00", // Normal
+          removeAccents(companyName) + "\x0A",
+          removeAccents(companyRfc) + "\x0A",
+          removeAccents(sucursalDireccion) + "\x0A",
+          "\x0A",
+          padLR("FECHA:", new Date(venta.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })) + "\x0A",
+          padLR("MONEDA:", "PESOS MEXICANOS") + "\x0A",
+          padLR("Usuario:", venta.vendedor) + "\x0A",
+          padLR("SUCURSAL:", venta.sucursal_nombre) + "\x0A",
+          "-".repeat(ticketWidth) + "\x0A",
+          padMultiple("CANT", "DESCRIPCION", "P/U", "TOTAL") + "\x0A",
+          "-".repeat(ticketWidth) + "\x0A",
+      ];
+
+      items.forEach((item) => {
+          let name = item.producto_nombre || "Producto";
+          const availableWidth = 16;
+          if (name.length > availableWidth) {
+              name = name.substring(0, availableWidth);
+          }
+          dataToPrint.push(padMultiple(
+              formatCurrencyForTicket(item.cantidad),
+              name,
+              formatCurrencyForTicket(item.precio_unitario),
+              formatCurrencyForTicket(item.subtotal)
+          ) + "\x0A");
+      });
+
+      dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
+      dataToPrint.push("\x1B\x61\x02"); // Right align
+      dataToPrint.push(padLR("TOTAL $", formatCurrencyForTicket(venta.total)) + "\x0A");
+
+      let totalRecibido = 0;
+      if (venta.metodo_pago) {
+          try {
+              const payments = JSON.parse(venta.metodo_pago);
+              if (Array.isArray(payments)) {
+                  payments.forEach(pago => {
+                      const monto = parseFloat(pago.amount) || 0;
+                      totalRecibido += monto;
+                      const etiqueta = (pago.method === "Efectivo") ? "Recibido" : pago.method;
+                      dataToPrint.push(padLR(`${etiqueta} $`, formatCurrencyForTicket(monto)) + "\x0A");
+                  });
+              }
+          } catch (e) {
+              totalRecibido = parseFloat(venta.total) || 0;
+              dataToPrint.push(padLR("Recibido $", formatCurrencyForTicket(totalRecibido)) + "\x0A");
+          }
+      }
+
+      const cambio = totalRecibido - (parseFloat(venta.total) || 0);
+      if (cambio > 0.005) {
+          dataToPrint.push(padLR("Cambio $", formatCurrencyForTicket(cambio)) + "\x0A");
+      }
+
+      dataToPrint.push("\x0A");
+      dataToPrint.push("\x1B\x61\x01"); // Center
+      dataToPrint.push("Gracias por su Visita\x0A");
+      dataToPrint.push("\x0A\x0A\x0A");
+      dataToPrint.push("\x1D\x56\x41\x03"); // Cut
+
+      try {
+          await qz.print(config, dataToPrint);
+          showToast("Ticket enviado a la impresora.", "success");
+      } catch (err) {
+          console.error("Error al imprimir:", err);
+          showToast("Error al enviar el ticket a la impresora.", "error");
+      }
+  }
+  
+  async function printCashCutQZ(printerName, reportData) {
+      if (!qzTrayConnected) {
+          showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
+          return;
+      }
+      const config = qz.configs.create(printerName);
+
+      const { sucursal, corte, cajaInicial, gastosDetalle, abonosDetalle, fechaCorte, usuario } = reportData;
+      
+      const totalIngresos = (cajaInicial || 0) + (corte.ventas_efectivo || 0) + (corte.abonos_clientes || 0) + (corte.ventas_tarjeta || 0);
+      const totalEntregar = (cajaInicial || 0) + (corte.ventas_efectivo || 0) + (corte.abonos_clientes || 0) - (corte.total_gastos || 0);
+
+      let dataToPrint = [
+          "\x1B\x40", // Reset
+          "\x1B\x74\x11", // Codepage
+          "\x1B\x61\x01", // Center
+          "\x1B\x21\x18", // Bold + Double Height
+          "Mega Party\x0A",
+          "\x1B\x21\x08", // Bold
+          removeAccents(`Sucursal: ${sucursal.nombre}`)+ "\x0A",
+          "\x1B\x21\x00", // Normal
+          removeAccents(sucursal.direccion || '') + "\x0A",
+          removeAccents(`Teléf.:${sucursal.telefono || ''}`) + "\x0A",
+          "\x0A",
+          "\x1B\x61\x00", // Left
+          padLR("Fecha del Corte:", new Date(fechaCorte + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'})) + "\x0A",
+          padLR("Generado el:", new Date().toLocaleString('es-MX')) + "\x0A",
+          padLR("Usuario:", usuario) + "\x0A",
+          "\x0A",
+          "\x1B\x21\x08", // Bold
+          padLR("Total Venta:", `$${formatCurrencyForTicket(corte.total_ventas)}`) + "\x0A",
+          "\x1B\x21\x00", // Normal
+          "\x0A",
+          "Ingresos:\x0A",
+          padLR("(+) Caja Inicial:", `$${formatCurrencyForTicket(cajaInicial)}`) + "\x0A",
+          padLR("(+) Efectivo:", `$${formatCurrencyForTicket(corte.ventas_efectivo)}`) + "\x0A",
+          padLR("(+) Abonos Clientes:", `$${formatCurrencyForTicket(corte.abonos_clientes)}`) + "\x0A",
+          padLR("(+) Tarjetas:", `$${formatCurrencyForTicket(corte.ventas_tarjeta)}`) + "\x0A",
+          "-".repeat(ticketWidth) + "\x0A",
+          padLR("Total:", `$${formatCurrencyForTicket(totalIngresos)}`) + "\x0A",
+          "\x0A",
+          "Egresos\x0A"
+      ];
+
+      if (gastosDetalle && gastosDetalle.length > 0) {
+          gastosDetalle.forEach(gasto => {
+              let desc = gasto.descripcion || "Gasto";
+              if (desc.length > ticketWidth - 14) desc = desc.substring(0, ticketWidth - 14);
+              dataToPrint.push(padLR(removeAccents(desc), `$${formatCurrencyForTicket(gasto.monto)}`) + "\x0A");
+          });
+      } else {
+          dataToPrint.push(padLR("Sin gastos registrados", "$0.00") + "\x0A");
+      }
+      
+      dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
+      dataToPrint.push(padLR("Total:", `$${formatCurrencyForTicket(corte.total_gastos)}`) + "\x0A");
+      dataToPrint.push("\x0A\x0A");
+      dataToPrint.push("\x1B\x61\x01"); // Center
+      dataToPrint.push("\x1B\x21\x18"); // Bold + Double Height
+      dataToPrint.push(padLR("Total a entregar:", `$${formatCurrencyForTicket(totalEntregar)}`) + "\x0A");
+      dataToPrint.push("\x0A\x0A\x0A");
+      dataToPrint.push("\x1D\x56\x41\x03"); // Cut
+
+      try {
+          await qz.print(config, dataToPrint);
+          showToast("Corte de caja enviado a la impresora.", "success");
+      } catch (err) {
+          console.error("Error al imprimir el corte de caja:", err);
+          showToast("Error al enviar el corte de caja a la impresora.", "error");
+      }
+  }
+
+  async function handlePrintTicket(saleId) {
+    if (!printerConfig.isLoaded) {
+      showToast("Cargando configuración de impresora, por favor espere...", "info");
+      await getPrintPrefs();
+    }
+
+    showToast("Obteniendo datos del ticket...", "info");
+    let ticketData;
+    try {
+      const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
+      const result = await response.json();
+      if (!result.success) {
+        showToast(result.message || "No se pudo obtener el ticket.", "error");
+        return;
+      }
+      ticketData = result.data;
+    } catch (err) {
+      console.error("Error al obtener datos del ticket:", err);
+      showToast("Error de conexión al obtener el ticket.", "error");
       return;
     }
-    const config = qz.configs.create(printerName);
-    let dataToPrint = [
-      "\x1B" + "\x40",
-      "\x1B" + "\x74" + "\x11",
-      "\x1B" + "\x61" + "\x31",
-      "\x1B" + "\x21" + "\x10",
-      removeAccents(ticketData.venta.sucursal_nombre) + "\x0A",
-      "\x1B" + "\x21" + "\x00",
-      removeAccents(ticketData.venta.sucursal_direccion) + "\x0A",
-      "Tel: " + ticketData.venta.sucursal_telefono + "\x0A",
-      "\x0A",
-      "\x1B" + "\x61" + "\x30",
-      formatLine("Ticket:", "#" + ticketData.venta.id.toString().padStart(6, "0")),
-      formatLine("Fecha:", new Date(ticketData.venta.fecha).toLocaleString("es-MX")),
-      formatLine("Cliente:", ticketData.venta.cliente),
-      formatLine("Vendedor:", ticketData.venta.vendedor),
-      "-".repeat(ticketWidth) + "\x0A",
-      formatLine("Cant Descripcion", "Total"),
-      "-".repeat(ticketWidth) + "\x0A",
-    ];
-    ticketData.items.forEach((item) => {
-      const qtyPart = `${item.cantidad} `;
-      const pricePart = formatCurrencyForTicket(item.subtotal);
-      const maxNameLength = ticketWidth - qtyPart.length - pricePart.length - 1;
-      let productName = item.producto_nombre;
-      if (productName.length > maxNameLength) {
-        productName = productName.substring(0, maxNameLength - 3) + "...";
+
+    if (printMethod === 'service') {
+      showToast("Enviando a servicio de impresión local...", "info");
+      if (printerConfig.name) {
+        ticketData.printerName = printerConfig.name;
       }
-      const mainLine = qtyPart + productName;
-      dataToPrint.push(formatLine(mainLine, pricePart));
-      if (item.sku) {
-        dataToPrint.push(formatLine(`  SKU: ${item.sku}`));
+      try {
+        const serviceResponse = await fetch('http://127.0.0.1:9898/imprimir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...ticketData, type: 'ticket' })
+        });
+        if (serviceResponse.ok) {
+          showToast("Ticket enviado al servicio local.", "success");
+        } else {
+          const errorText = await serviceResponse.text();
+          showToast(`Error del servicio local: ${errorText}`, "error");
+        }
+      } catch (err) {
+        console.warn("Servicio local no disponible:", err);
+        showToast("Servicio local no encontrado. Verifique que esté en ejecución.", "error");
       }
-    });
-    dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
-    dataToPrint.push("\x1B" + "\x61" + "\x32");
-    dataToPrint.push("\x1B" + "\x21" + "\x08");
-    dataToPrint.push(formatLine("TOTAL: ", formatCurrencyForTicket(ticketData.venta.total)));
-    dataToPrint.push("\x1B" + "\x21" + "\x00");
-    dataToPrint.push("\x0A");
-    dataToPrint.push("\x1B" + "\x61" + "\x31");
-    dataToPrint.push(removeAccents("¡Gracias por su compra!") + "\x0A");
-    dataToPrint.push("\x0A" + "\x0A" + "\x0A");
-    dataToPrint.push("\x1D" + "\x56" + "\x41" + "\x03");
-    try {
-      await qz.print(config, dataToPrint);
-      showToast("Ticket enviado a la impresora.", "success");
-    } catch (err) {
-      console.error("Error al imprimir:", err);
-      showToast("Error al enviar el ticket a la impresora.", "error");
+    } else { // 'qztray'
+      showToast("Enviando a QZ Tray...", "info");
+      if (!printerConfig.name) {
+        showToast("No hay una impresora configurada para QZ Tray.", "error");
+        return;
+      }
+      await printTicketQZ(printerConfig.name, ticketData);
     }
+  }
+
+  async function handlePrintTicketViaDialog(saleId) {
+    showToast("Preparando vista previa de impresión...", "info");
+    try {
+        const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
+        const result = await response.json();
+        if (result.success) {
+            const html = buildTicketHtml(result.data);
+            openPrintDialogWithTicket(html, saleId);
+        } else {
+            showToast(result.message || "No se pudo obtener el ticket.", "error");
+        }
+    } catch (err) {
+        console.error("Error al obtener datos del ticket para diálogo:", err);
+        showToast("Error de conexión al preparar la vista previa.", "error");
+    }
+  }
+
+  function handleViewPdf(saleId) {
+    const pdfUrl = `${BASE_URL}/generateQuote?id=${saleId}`;
+    window.open(pdfUrl, '_blank');
   }
 
   async function fetchCashCut() {
@@ -311,7 +494,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     cashCutResultsContainer.innerHTML = `<p class="text-[var(--color-text-secondary)] col-span-full">Calculando corte de caja...</p>`;
     let urlParams = `date=${date}`;
-    if (userFilterSelect && userFilterSelect.value) { // Se añade validación
+    if (userFilterSelect && userFilterSelect.value) {
       urlParams += `&user_id=${userFilterSelect.value}`;
     }
     try {
@@ -394,8 +577,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-
-
   function escapeHtml(str = "") {
     return String(str).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
   }
@@ -442,77 +623,6 @@ document.addEventListener("DOMContentLoaded", function () {
     w.document.write(`
     <!doctype html><html><head><meta charset="utf-8"><title>Ticket #${String(ventaId).padStart(6, "0")}</title><style>@page{size:58mm auto;margin:0;}@media print{html,body{margin:0;padding:0;}}html,body{background:#fff;}.ticket{width:58mm;box-sizing:border-box;padding:4mm 3mm;font-family:Tahoma,Arial,Helvetica,sans-serif;font-size:12px;color:#000;font-weight:600;text-rendering:optimizeLegibility;}h1{margin:0 0 2px 0;font-family:"Arial Black",Tahoma,Arial,Helvetica,sans-serif;font-size:15px;font-weight:900;text-align:center;letter-spacing:.2px;text-transform:uppercase;text-shadow:0 0 .3px #000,0 0 .3px #000;-webkit-text-stroke:.15px #000;}.sub{text-align:center;margin-bottom:6px;}.row{display:flex;justify-content:space-between;gap:8px;}.total{font-weight:700;font-size:13px;}hr{border:0;border-top:1px dashed #000;margin:6px 0;}.center{text-align:center;}.gracias{margin-top:8px;}table.items{width:100%;border-collapse:collapse;}table.items th{text-align:left;font-weight:700;border-bottom:1px solid #000;padding-bottom:2px;}table.items td{vertical-align:top;}.qty{width:10mm;white-space:nowrap;}.desc{width:auto;padding:0 4px;}.desc .sku{font-size:11px;margin-top:2px;opacity:.8;}.monto{text-align:right;white-space:nowrap;width:18mm;}</style></head><body>${html}<script>window.onload=function(){try{window.focus();window.print();}catch(e){}};<\/script></body></html>`);
     w.document.close();
-  }
-
-  async function handlePrintTicket(saleId) {
-    // 1. Asegurarnos de que las preferencias de la impresora estén cargadas
-    if (!printerConfig.isLoaded) {
-      showToast("Cargando configuración de impresora, por favor espere...", "info");
-      await getPrintPrefs(); // Esperamos a que termine
-    }
-
-    // 2. Obtener los datos del ticket
-    showToast("Obteniendo datos del ticket...", "info");
-    let ticketData;
-    try {
-      const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
-      const result = await response.json();
-      if (!result.success) {
-        showToast(result.message || "No se pudo obtener el ticket.", "error");
-        return;
-      }
-      ticketData = result.data;
-    } catch (err) {
-      console.error("Error al obtener datos del ticket:", err);
-      showToast("Error de conexión al obtener el ticket.", "error");
-      return;
-    }
-
-    // 3. Decidir qué método usar
-    if (printMethod === 'service') {
-      showToast("Enviando a servicio de impresión local...", "info");
-      if (printerConfig.name) {
-        ticketData.printerName = printerConfig.name;
-      }
-      try {
-        const serviceResponse = await fetch('http://127.0.0.1:9898/imprimir', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...ticketData, type: 'ticket' })
-        });
-        if (serviceResponse.ok) {
-          showToast("Ticket enviado al servicio local.", "success");
-        } else {
-          const errorText = await serviceResponse.text();
-          showToast(`Error del servicio local: ${errorText}`, "error");
-        }
-      } catch (err) {
-        console.warn("Servicio local no disponible:", err);
-        showToast("Servicio local no encontrado. Verifique que esté en ejecución.", "error");
-      }
-    } else { // 'qztray'
-      showToast("Enviando a QZ Tray...", "info");
-      if (typeof qz === "undefined" || !qz.websocket.isActive()) {
-        showToast("QZ Tray no está conectado.", "warning");
-        return;
-      }
-      if (!printerConfig.name) {
-        showToast("No hay una impresora configurada para QZ Tray.", "error");
-        return;
-      }
-      try {
-        await printTicket(printerConfig.name, ticketData);
-      } catch (e) {
-        console.error("Error al imprimir con QZ Tray:", e);
-        showToast("No se pudo imprimir con QZ Tray.", "error");
-      }
-    }
-  }
-
-
-  function handleViewPdf(saleId) {
-    const pdfUrl = `${BASE_URL}/generateQuote?id=${saleId}`;
-    window.open(pdfUrl, '_blank');
   }
 
   function renderCashCut(data, date, initialCash) {
@@ -610,39 +720,35 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function printCashCutReport() {
-    // 1. Asegurarnos de que las preferencias de impresión estén cargadas
     if (!printerConfig.isLoaded) {
       showToast("Cargando configuración de impresora, por favor espere...", "info");
       await getPrintPrefs();
     }
 
-    // 2. Verificar que existan datos del corte para imprimir
     if (!currentCashCutData) {
       showToast("No hay datos de corte de caja para imprimir.", "error");
       return;
     }
 
-    // 3. Obtener los detalles (gastos y abonos) que no están en currentCashCutData
     showToast("Recopilando detalles del reporte...", "info");
     const dateForPrint = cashCutDateInput.value;
     const detailedExpenses = await fetchDetailedData(`${BASE_URL}/getDetailedExpenses`, dateForPrint);
     const detailedClientPayments = await fetchDetailedData(`${BASE_URL}/getDetailedClientPayments`, dateForPrint);
-
-    // 4. Decidir qué método de impresión usar
-    if (printMethod === 'service') {
-      showToast("Enviando corte de caja al servicio local...", "info");
-
-      // Creamos un objeto JSON completo con toda la información para el servicio
-      const reportData = {
-        type: 'corte', // Un identificador para que el servicio sepa qué formato usar
-        printerName: printerConfig.name,
+    
+    const reportData = {
+        sucursal: sucursalActual,
         corte: currentCashCutData,
         cajaInicial: currentInitialCash,
         gastosDetalle: detailedExpenses,
         abonosDetalle: detailedClientPayments,
         fechaCorte: dateForPrint,
         usuario: userFilterSelect ? userFilterSelect.options[userFilterSelect.selectedIndex].text : 'N/A'
-      };
+    };
+
+    if (printMethod === 'service') {
+      showToast("Enviando corte de caja al servicio local...", "info");
+      reportData.type = 'corte';
+      reportData.printerName = printerConfig.name;
 
       try {
         const serviceResponse = await fetch('http://127.0.0.1:9898/imprimir', {
@@ -663,130 +769,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
     } else { // 'qztray'
       showToast("Enviando corte de caja a QZ Tray...", "info");
-
-      if (typeof qz === "undefined" || !qz.websocket.isActive()) {
-        showToast("QZ Tray no está conectado.", "warning");
-        return;
-      }
-      if (!printerConfig.name) {
+       if (!printerConfig.name) {
         showToast("Impresora no configurada para QZ Tray.", "error");
         return;
       }
-
-      // Construimos el formato de texto plano para la impresora de tickets
-      const totalIngresosEfectivo = parseFloat(currentCashCutData.ventas_efectivo || 0) + parseFloat(currentCashCutData.abonos_clientes || 0);
-      const balanceFinal = currentInitialCash + totalIngresosEfectivo - parseFloat(currentCashCutData.total_gastos || 0);
-      const formatInputDateToDDMMYYYY = (dateString) => {
-        const parts = dateString.split('-');
-        return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateString;
-      };
-
-      let dataToPrint = [
-        "\x1B" + "\x40", // Reset
-        "\x1B" + "\x61" + "\x31", // Center align
-        "\x1B" + "\x21" + "\x10", // Double height
-        "CORTE DE CAJA" + "\x0A",
-        "\x1B" + "\x21" + "\x00", // Normal size
-        formatInputDateToDDMMYYYY(dateForPrint) + "\x0A",
-        "\x0A",
-        "\x1B" + "\x61" + "\x30", // Left align
-        "-".repeat(ticketWidth) + "\x0A",
-        formatCentered("--- INGRESOS ---") + "\x0A",
-        formatLine("Caja Inicial:", formatCurrencyForTicket(currentInitialCash)),
-        formatLine("Ventas en Efectivo:", formatCurrencyForTicket(currentCashCutData.ventas_efectivo)),
-        formatLine("Abonos de Clientes:", formatCurrencyForTicket(currentCashCutData.abonos_clientes)),
-        "-".repeat(ticketWidth) + "\x0A",
-        formatLine("TOTAL INGRESOS:", formatCurrencyForTicket(totalIngresosEfectivo)),
-        "\x0A",
-        formatCentered("--- EGRESOS ---") + "\x0A",
-        formatLine("Total de Gastos:", formatCurrencyForTicket(currentCashCutData.total_gastos)),
-        "\x0A",
-        "-".repeat(ticketWidth) + "\x0A",
-        "\x1B" + "\x21" + "\x08", // Emphasized
-        formatLine("BALANCE FINAL:", formatCurrencyForTicket(balanceFinal)),
-        "\x1B" + "\x21" + "\x00", // Normal
-        "-".repeat(ticketWidth) + "\x0A",
-        "\x0A",
-        formatCentered("--- OTROS TOTALES ---") + "\x0A",
-        formatLine("Total Ventas (Todos):", formatCurrencyForTicket(currentCashCutData.total_ventas)),
-        formatLine("Ventas con Tarjeta:", formatCurrencyForTicket(currentCashCutData.ventas_tarjeta)),
-        formatLine("Ventas Transferencia:", formatCurrencyForTicket(currentCashCutData.ventas_transferencia)),
-        formatLine("Ventas a Credito:", formatCurrencyForTicket(currentCashCutData.ventas_credito)),
-        "\x0A" + "\x0A" + "\x0A",
-        "\x1D" + "\x56" + "\x41" + "\x03" // Cortar papel
-      ];
-
-      const config = qz.configs.create(printerConfig.name);
-      try {
-        await qz.print(config, dataToPrint);
-        showToast("Corte de caja enviado a la impresora.", "success");
-      } catch (err) {
-        console.error("Error al imprimir el corte de caja:", err);
-        showToast("Error al enviar el corte de caja a la impresora.", "error");
-      }
+      await printCashCutQZ(printerConfig.name, reportData);
     }
-  }
-
-
-  async function printCashCutReportWithDialog() {
-    const dateForPrint = cashCutDateInput.value;
-    const detailedExpenses = await fetchDetailedData(`${BASE_URL}/getDetailedExpenses`, dateForPrint);
-    const detailedClientPayments = await fetchDetailedData(`${BASE_URL}/getDetailedClientPayments`, dateForPrint);
-
-    const formatCurrency = (value) => `$${parseFloat(value || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    const formatInputDateToDDMMYYYY = (dateString) => {
-      const parts = dateString.split('-');
-      return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : dateString;
-    };
-
-    const totalIngresosEfectivo = parseFloat(currentCashCutData.ventas_efectivo || 0) + parseFloat(currentCashCutData.abonos_clientes || 0);
-    const balanceFinal = currentInitialCash + totalIngresosEfectivo - parseFloat(currentCashCutData.total_gastos || 0);
-
-    const expensesHtml = detailedExpenses.length > 0 ? detailedExpenses.map(exp => `
-        <div class="row">
-            <span>${escapeHtml(exp.descripcion)}</span>
-            <span>${formatCurrency(exp.monto)}</span>
-        </div>
-    `).join('') : '<div class="row-center">No se encontraron gastos</div>';
-
-    const paymentsHtml = detailedClientPayments.length > 0 ? detailedClientPayments.map(pay => `
-        <div class="row">
-            <span>${escapeHtml(pay.cliente_nombre)} (${escapeHtml(pay.metodo_pago)})</span>
-            <span>${formatCurrency(pay.monto)}</span>
-        </div>
-    `).join('') : '<div class="row-center">No se encontraron abonos</div>';
-
-    const reportHtml = `
-        <div class="ticket">
-            <h1>CORTE DE CAJA</h1>
-            <div class="sub">Fecha del Corte: ${formatInputDateToDDMMYYYY(dateForPrint)}</div>
-            <hr>
-            <h2>INGRESOS</h2>
-            <div class="row"><span>Caja Inicial:</span><span>${formatCurrency(currentInitialCash)}</span></div>
-            <div class="row"><span>Ventas en Efectivo:</span><span>${formatCurrency(currentCashCutData.ventas_efectivo)}</span></div>
-            <div class="row"><span>Abonos de Clientes:</span><span>${formatCurrency(currentCashCutData.abonos_clientes)}</span></div>
-            <hr>
-            <div class="row total"><span>Total Ingresos:</span><span>${formatCurrency(totalIngresosEfectivo)}</span></div>
-            <br>
-            <h2>EGRESOS</h2>
-            <div class="row"><span>Total de Gastos:</span><span>${formatCurrency(currentCashCutData.total_gastos)}</span></div>
-            <hr>
-            <div class="row total"><span>BALANCE FINAL:</span><span>${formatCurrency(balanceFinal)}</span></div>
-            <br>
-            <h2>DETALLE DE GASTOS</h2>
-            ${expensesHtml}
-            <br>
-            <h2>DETALLE DE ABONOS</h2>
-            ${paymentsHtml}
-            <br>
-            <h2>OTROS TOTALES</h2>
-            <div class="row"><span>Total Ventas (Todos):</span><span>${formatCurrency(currentCashCutData.total_ventas)}</span></div>
-            <div class="row"><span>Ventas con Tarjeta:</span><span>${formatCurrency(currentCashCutData.ventas_tarjeta)}</span></div>
-        </div>
-    `;
-
-    // Reutilizamos la función que abre la ventana de impresión
-    openPrintDialogWithTicket(reportHtml, `Corte-${dateForPrint}`);
   }
 
   async function initializePage() {
@@ -794,14 +782,13 @@ document.addEventListener("DOMContentLoaded", function () {
     const todayFormatted = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, "0")}-${now.getDate().toString().padStart(2, "0")}`;
     if (cashCutDateInput) cashCutDateInput.value = todayFormatted;
 
+    await fetchSucursalDetails();
     initSalesDataTable();
     await loadUsersForFilter();
     await fetchCashCut();
-
-    // La configuración y el método de impresión se cargan al final
     await getPrintPrefs();
   }
-
+  
   // Event Listeners
   if (generateCashCutBtn) generateCashCutBtn.addEventListener("click", fetchCashCut);
   if (printCashCutBtn) printCashCutBtn.addEventListener("click", printCashCutReport);
@@ -809,6 +796,5 @@ document.addEventListener("DOMContentLoaded", function () {
     userFilterSelect.addEventListener('change', fetchCashCut);
   }
 
-  // Iniciar la página
   initializePage();
 });

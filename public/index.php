@@ -9,16 +9,16 @@ $requested_uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // Comprobamos si la URL es para una de nuestras carpetas de assets
 if (preg_match('/^\/multi-sucursal\/public\/(img|css|js)\//', $requested_uri)) {
-    
+
     // Construimos la ruta física del archivo en el servidor
     $file_path = __DIR__ . str_replace('/multi-sucursal/public', '', $requested_uri);
 
     // Si el archivo realmente existe en el disco...
     if (file_exists($file_path) && is_file($file_path)) {
-        
+
         // Obtenemos el tipo de contenido (ej: 'image/png')
         $mime_type = mime_content_type($file_path);
-        
+
         if ($mime_type) {
             // Enviamos la cabecera correcta al navegador
             header('Content-Type: ' . $mime_type);
@@ -114,7 +114,8 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'getDetailedExpenses',
         'getDetailedClientPayments',
         'getGlobalSalesReport',
-        'getGlobalVentasServerSide'
+        'getGlobalVentasServerSide',
+        'getSucursalActual'
     ])
 ) {
     require_once __DIR__ . '/../app/controllers/ReporteController.php';
@@ -132,7 +133,8 @@ if (in_array($action, ['login', 'logout', 'check-session'])) {
         'createUsuario',
         'getUsuario',
         'updateUsuario',
-        'deleteUsuario'
+        'deleteUsuario',
+        
     ])
 ) {
     require_once __DIR__ . '/../app/controllers/AdminController.php';
@@ -354,6 +356,9 @@ switch ($action) {
     case 'getGlobalVentasServerSide':
         $controller->getGlobalVentasServerSide();
         break;
+    case 'getSucursalActual':
+        $controller->getSucursalActual();
+        break;
 
     // --- RUTAS DE APERTURA DE CAJA ---
     case 'checkApertura':
@@ -391,6 +396,7 @@ switch ($action) {
     case 'deleteUsuario':
         $controller->deleteUsuario();
         break;
+
 
     // --- RUTAS DE CONFIGURACIÓN ---
     case 'getBranchConfig':

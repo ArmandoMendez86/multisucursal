@@ -89,7 +89,6 @@ class Reporte
         ];
     }
 
-    // --- CAMBIO: Firma del método y consulta SQL actualizadas ---
     public function getVentasPorFecha($id_sucursal, $fecha_inicio, $fecha_fin, $id_vendedor = null)
     {
         $fecha_fin_completa = $fecha_fin . ' 23:59:59';
@@ -116,7 +115,6 @@ class Reporte
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // --- CAMBIO: Firma del método y consultas SQL actualizadas ---
     public function getCorteDeCaja($id_sucursal, $fecha, $id_usuario = null)
     {
         $fecha_inicio_completa = $fecha . ' 00:00:00';
@@ -131,10 +129,10 @@ class Reporte
             'abonos_clientes' => 0
         ];
 
-        // 1. Ventas
-        $query_ventas = "SELECT metodo_pago, total FROM ventas WHERE id_sucursal = :id_sucursal AND fecha BETWEEN :fecha_inicio AND :fecha_fin AND estado = 'Completada'";
+        $query_ventas = "SELECT total, metodo_pago FROM ventas WHERE id_sucursal = :id_sucursal AND fecha BETWEEN :fecha_inicio AND :fecha_fin AND estado = 'Completada'";
         if ($id_usuario !== null)
             $query_ventas .= " AND id_usuario = :id_usuario";
+
         $stmt_ventas = $this->conn->prepare($query_ventas);
         $stmt_ventas->bindParam(':id_sucursal', $id_sucursal);
         $stmt_ventas->bindParam(':fecha_inicio', $fecha_inicio_completa);
@@ -143,53 +141,57 @@ class Reporte
             $stmt_ventas->bindParam(':id_usuario', $id_usuario);
         $stmt_ventas->execute();
 
-        // --- INICIO DE LA LÓGICA CORREGIDA ---
         while ($row = $stmt_ventas->fetch(PDO::FETCH_ASSOC)) {
-            $resultado['total_ventas'] += $row['total'];
+            $sale_total = floatval($row['total']);
+            $resultado['total_ventas'] += $sale_total;
+
             $metodos_pago = json_decode($row['metodo_pago'], true);
+
             if (is_array($metodos_pago)) {
-                foreach ($metodos_pago as $pago) {
-                    if (isset($pago['method']) && isset($pago['amount'])) {
-                        switch ($pago['method']) {
-                            case 'Efectivo':
-                                $resultado['ventas_efectivo'] += $pago['amount'];
-                                break;
-                            case 'Tarjeta':
-                                $resultado['ventas_tarjeta'] += $pago['amount'];
-                                break;
-                            case 'Transferencia':
-                                $resultado['ventas_transferencia'] += $pago['amount'];
-                                break;
-                            case 'Crédito':
-                                $resultado['ventas_credito'] += $pago['amount'];
-                                break;
+                // CASO ESPECIAL: Si solo hay un pago y es en efectivo, significa que el monto real que ingresó a caja es el total de la venta (el resto fue cambio).
+                if (count($metodos_pago) === 1 && $metodos_pago[0]['method'] === 'Efectivo') {
+                    $resultado['ventas_efectivo'] += $sale_total;
+                } else {
+                    // CASO NORMAL: Múltiples pagos o pagos que no son solo efectivo. Aquí los montos son exactos.
+                    foreach ($metodos_pago as $pago) {
+                        if (isset($pago['method']) && isset($pago['amount'])) {
+                            $monto_pago = floatval($pago['amount']);
+                            switch ($pago['method']) {
+                                case 'Efectivo':
+                                    $resultado['ventas_efectivo'] += $monto_pago;
+                                    break;
+                                case 'Tarjeta':
+                                    $resultado['ventas_tarjeta'] += $monto_pago;
+                                    break;
+                                case 'Transferencia':
+                                    $resultado['ventas_transferencia'] += $monto_pago;
+                                    break;
+                                case 'Crédito':
+                                    $resultado['ventas_credito'] += $sale_total;
+                                    break;
+                            }
                         }
                     }
                 }
-            }
-            // Si no es un array, podría ser el formato antiguo (una sola cadena de texto)
-            elseif (is_string($row['metodo_pago'])) {
-                $metodo = $row['metodo_pago'];
-                $monto = $row['total']; // En el formato antiguo, el total de la venta es el monto del único método.
-                switch ($metodo) {
+            } elseif (is_string($row['metodo_pago'])) { // Lógica de respaldo para formato antiguo
+                switch ($row['metodo_pago']) {
                     case 'Efectivo':
-                        $resultado['ventas_efectivo'] += $monto;
+                        $resultado['ventas_efectivo'] += $sale_total;
                         break;
                     case 'Tarjeta':
-                        $resultado['ventas_tarjeta'] += $monto;
+                        $resultado['ventas_tarjeta'] += $sale_total;
                         break;
                     case 'Transferencia':
-                        $resultado['ventas_transferencia'] += $monto;
+                        $resultado['ventas_transferencia'] += $sale_total;
                         break;
                     case 'Crédito':
-                        $resultado['ventas_credito'] += $monto;
+                        $resultado['ventas_credito'] += $sale_total;
                         break;
                 }
             }
         }
-        // --- FIN DE LA LÓGICA CORREGIDA ---
 
-        // 2. Gastos
+        // Gastos
         $query_gastos = "SELECT SUM(monto) as total_gastos FROM gastos WHERE id_sucursal = :id_sucursal AND fecha BETWEEN :fecha_inicio AND :fecha_fin";
         if ($id_usuario !== null)
             $query_gastos .= " AND id_usuario = :id_usuario";
@@ -205,7 +207,7 @@ class Reporte
             $resultado['total_gastos'] = $gastos_result['total_gastos'];
         }
 
-        // 3. Abonos
+        // Abonos de Clientes
         $query_abonos = "SELECT SUM(pc.monto) as total_abonos FROM pagos_clientes pc JOIN usuarios u ON pc.id_usuario = u.id WHERE u.id_sucursal = :id_sucursal AND pc.fecha BETWEEN :fecha_inicio AND :fecha_fin AND pc.metodo_pago IN ('Efectivo', 'Transferencia')";
         if ($id_usuario !== null)
             $query_abonos .= " AND pc.id_usuario = :id_usuario";
@@ -224,7 +226,6 @@ class Reporte
         return $resultado;
     }
 
-    // --- CAMBIO: Firma del método y consulta SQL actualizadas ---
     public function getGastosDetallados($id_sucursal, $fecha, $id_usuario = null)
     {
         $fecha_inicio_completa = $fecha . ' 00:00:00';
@@ -244,7 +245,6 @@ class Reporte
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // --- CAMBIO: Firma del método y consulta SQL actualizadas ---
     public function getAbonosDetallados($id_sucursal, $fecha, $id_usuario = null)
     {
         $fecha_inicio_completa = $fecha . ' 00:00:00';
@@ -285,7 +285,6 @@ class Reporte
     }
     public function getSalesReportPaginated($id_sucursal, $startDate, $endDate, $userFilter, $searchValue, $orderColIdx, $orderDir, $start, $length)
     {
-        // Map DataTables column index to DB column
         $columns = ['v.fecha', 'v.id', 'c.nombre', 'u.nombre', 'v.total', 'v.estado'];
         $orderBy = $columns[$orderColIdx] ?? 'v.fecha';
         $orderDir = strtoupper($orderDir) === 'ASC' ? 'ASC' : 'DESC';
@@ -304,19 +303,16 @@ class Reporte
             $params[':userFilter'] = $userFilter;
         }
 
-        // Base query
         $base = " FROM ventas v
                   JOIN clientes c ON v.id_cliente = c.id
                   JOIN usuarios u ON v.id_usuario = u.id ";
 
-        // recordsTotal (sin search)
         $sqlTotal = "SELECT COUNT(*) as cnt " . $base . $where;
         $stmt = $this->conn->prepare($sqlTotal);
         foreach ($params as $k => $v) $stmt->bindValue($k, $v);
         $stmt->execute();
         $recordsTotal = (int)($stmt->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
 
-        // Search
         $recordsFiltered = $recordsTotal;
         $whereSearch = $where;
         $paramsSearch = $params;
@@ -330,7 +326,6 @@ class Reporte
             $recordsFiltered = (int)($stmt2->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
         }
 
-        // Data page
         $sqlData = "SELECT v.id, v.fecha, v.total, v.estado, c.nombre as cliente, u.nombre as usuario "
             . $base . $whereSearch
             . " ORDER BY $orderBy $orderDir LIMIT :start, :length";
@@ -342,7 +337,6 @@ class Reporte
         $stmt3->execute();
         $rows = $stmt3->fetchAll(PDO::FETCH_ASSOC);
 
-        // Construir columna Acciones (iconos y clases originales)
         $data = [];
         foreach ($rows as $r) {
             $acciones = '';
@@ -380,5 +374,14 @@ class Reporte
             'recordsFiltered' => $recordsFiltered,
             'data' => $data
         ];
+    }
+
+    public function getSucursalById($id_sucursal)
+    {
+        $query = "SELECT nombre, direccion, telefono FROM sucursales WHERE id = :id_sucursal";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_sucursal', $id_sucursal, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 }
