@@ -425,7 +425,7 @@ class Producto
 
     private function getAllSucursalIds()
     {
-        $stmt = $this->conn->prepare("SELECT id FROM sucursales WHERE activo = 1");
+        $stmt = $this->conn->prepare("SELECT id FROM sucursales");
         $stmt->execute();
         return $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
