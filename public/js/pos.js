@@ -188,6 +188,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Reemplaza esta función en tu archivo /public/js/pos.js
+
   function renderProducts(products) {
     productListContainer.innerHTML = "";
     if (products.length === 0) {
@@ -202,86 +204,99 @@ document.addEventListener("DOMContentLoaded", function () {
       productCard.dataset.productId = product.id;
       productCard.title = String(product.nombre || '');
       productCard.setAttribute('aria-label', productCard.title);
-      const imageUrl = `https://placehold.co/100x100/334155/E2E8F0?text=${encodeURIComponent(product.nombre.substring(0, 8))}`;
+
+      // ----- LÍNEA MODIFICADA -----
+      // Si product.url_imagen existe, la usamos. Si no, usamos un placeholder.
+      const imageUrl = product.imagen_url
+        ? `${BASE_URL}/public/${product.imagen_url}`
+        : `https://placehold.co/100x100/334155/E2E8F0?text=No+Img`;
+
       const stockClass = isOutOfStock ? 'zero-stock' : '';
       const stockText = isOutOfStock ? 'Agotado' : `Stock: ${stock}`;
 
       productCard.innerHTML = `
-          <img src="${imageUrl}" alt="${product.nombre}" class="product-card-image w-[70px] h-[70px] object-cover rounded-md mx-auto mb-2 shadow-sm">
-          <div class="flex-1 flex flex-col justify-between">
-            <div class="product-card-name font-bold text-sm mb-1 truncate">${product.nombre}</div>
-            <div class="product-card-stock text-xs mb-2 ${stockClass}">${stockText}</div>
-            <div class="font-mono text-green-400 text-xs font-bold">$${formatNumber(getPriceForProduct(product))}</div>
-          </div>`;
+        <img src="${imageUrl}" alt="${product.nombre}" class="product-card-image w-[70px] h-[70px] object-cover rounded-md mx-auto mb-2 shadow-sm">
+        <div class="flex-1 flex flex-col justify-between">
+          <div class="product-card-name font-bold text-sm mb-1 truncate">${product.nombre}</div>
+          <div class="product-card-stock text-xs mb-2 ${stockClass}">${stockText}</div>
+          <div class="font-mono text-green-400 text-xs font-bold">$${formatNumber(getPriceForProduct(product))}</div>
+        </div>`;
       productCard.addEventListener("click", () => addProductToCart(product.id));
       productListContainer.appendChild(productCard);
     });
   }
 
-  function renderCart() {
-    cartItemsContainer.innerHTML = "";
-    const searchTerm = searchCartInput.value.toLowerCase();
-    const filteredCart = cart.filter(
-      (item) =>
-        item.nombre.toLowerCase().includes(searchTerm) ||
-        (item.sku && item.sku.toLowerCase().includes(searchTerm)) ||
-        (item.codigos_barras && item.codigos_barras.toLowerCase().includes(searchTerm))
-    );
+ // Reemplaza también esta función en tu archivo /public/js/pos.js
 
-    if (filteredCart.length === 0) {
-      cartItemsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">El carrito está vacío</div>`;
-    } else {
-      filteredCart.forEach((item) => {
-        const cartItem = document.createElement("div");
-        cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
-        const imageUrl = `https://placehold.co/50x50/334155/E2E8F0?text=${encodeURIComponent(item.nombre.substring(0, 5))}`;
-        let priceTypeLabel = "";
-        if (item.tipo_precio_aplicado === "Especial") {
-          priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';
-        } else if (item.tipo_precio_aplicado === "Guardado") {
-          priceTypeLabel = '<span class="text-xxs text-yellow-400">Guardado</span> ';
-        } else if (String(item.tipo_precio_aplicado || '').startsWith('P')) {
-          priceTypeLabel = `<span class="text-xxs text-blue-400">${item.tipo_precio_aplicado}</span> `;
-        }
+function renderCart() {
+  cartItemsContainer.innerHTML = "";
+  const searchTerm = searchCartInput.value.toLowerCase();
+  const filteredCart = cart.filter(
+    (item) =>
+      item.nombre.toLowerCase().includes(searchTerm) ||
+      (item.sku && item.sku.toLowerCase().includes(searchTerm)) ||
+      (item.codigos_barras && item.codigos_barras.toLowerCase().includes(searchTerm))
+  );
 
-        cartItem.innerHTML = `
-            <img src="${imageUrl}" alt="${item.nombre}" class="cart-item-image w-10 h-10 object-cover rounded mr-2">
-            <div class="flex-1">
-                <p class="text-sm font-semibold text-[var(--color-text-primary)] truncate">${item.nombre}</p>
-                <p class="text-xs text-[var(--color-text-secondary)]">
-                    ${priceTypeLabel}
-                    <select class="price-level-select bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded text-xs mr-2" data-id="${item.id}">
-                        <option value="Especial" ${item.tipo_precio_aplicado === 'Especial' ? 'selected' : ''}>Especial</option>
-                        <option value="P1" ${item.tipo_precio_aplicado === 'P1' ? 'selected' : ''}>P1</option>
-                        <option value="P2" ${item.tipo_precio_aplicado === 'P2' ? 'selected' : ''}>P2</option>
-                        <option value="P3" ${item.tipo_precio_aplicado === 'P3' ? 'selected' : ''}>P3</option>
-                        <option value="P4" ${item.tipo_precio_aplicado === 'P4' ? 'selected' : ''}>P4</option>
-                        <option value="P5" ${item.tipo_precio_aplicado === 'P5' ? 'selected' : ''}>P5</option>
-                    </select>
-                    <span class="editable-price" data-id="${item.id}" data-price="${item.precio_final}">
-                        $${formatNumber(item.precio_final)}
-                    </span>
-                </p>
-            </div>
-            <div class="flex items-center ml-2">
-                <div class="quantity-controls flex items-center gap-px rounded-md overflow-hidden">
-                    <button data-id="${item.id}" class="quantity-change p-1 text-sm font-bold">-</button>
-                    <input type="number" min="1" class="quantity-input w-12 text-center text-sm px-1 mx-px focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" data-id="${item.id}" value="${item.quantity}" />
-                    <button data-id="${item.id}" class="quantity-change p-1 text-sm font-bold">+</button>
-                </div>
-                <div class="text-right font-mono text-base ml-2 line-total w-24" data-id="${item.id}">$${formatNumber(item.quantity * item.precio_final)}</div>
-                <button data-id="${item.id}" class="remove-item-btn text-red-400 hover:text-red-300 p-1 ml-1 rounded-full">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>`;
-        cartItemsContainer.appendChild(cartItem);
-      });
-    }
-    updateTotals();
-    toggleSaveButton();
-    addPriceEditListeners();
+  if (filteredCart.length === 0) {
+    cartItemsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">El carrito está vacío</div>`;
+  } else {
+    filteredCart.forEach((item) => {
+      const cartItem = document.createElement("div");
+      cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
+      
+      // ----- LÍNEA MODIFICADA -----
+      // Usamos la imagen real del item si existe.
+      const imageUrl = item.imagen_url 
+        ? `${BASE_URL}/public/${item.imagen_url}` 
+        : `https://placehold.co/50x50/334155/E2E8F0?text=No+Img`;
+      
+      let priceTypeLabel = "";
+      if (item.tipo_precio_aplicado === "Especial") {
+        priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';
+      } else if (item.tipo_precio_aplicado === "Guardado") {
+        priceTypeLabel = '<span class="text-xxs text-yellow-400">Guardado</span> ';
+      } else if (String(item.tipo_precio_aplicado || '').startsWith('P')) {
+        priceTypeLabel = `<span class="text-xxs text-blue-400">${item.tipo_precio_aplicado}</span> `;
+      }
+
+      cartItem.innerHTML = `
+          <img src="${imageUrl}" alt="${item.nombre}" class="cart-item-image w-10 h-10 object-cover rounded mr-2">
+          <div class="flex-1">
+              <p class="text-sm font-semibold text-[var(--color-text-primary)] truncate">${item.nombre}</p>
+              <p class="text-xs text-[var(--color-text-secondary)]">
+                  ${priceTypeLabel}
+                  <select class="price-level-select bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded text-xs mr-2" data-id="${item.id}">
+                      <option value="Especial" ${item.tipo_precio_aplicado === 'Especial' ? 'selected' : ''}>Especial</option>
+                      <option value="P1" ${item.tipo_precio_aplicado === 'P1' ? 'selected' : ''}>P1</option>
+                      <option value="P2" ${item.tipo_precio_aplicado === 'P2' ? 'selected' : ''}>P2</option>
+                      <option value="P3" ${item.tipo_precio_aplicado === 'P3' ? 'selected' : ''}>P3</option>
+                      <option value="P4" ${item.tipo_precio_aplicado === 'P4' ? 'selected' : ''}>P4</option>
+                      <option value="P5" ${item.tipo_precio_aplicado === 'P5' ? 'selected' : ''}>P5</option>
+                  </select>
+                  <span class="editable-price" data-id="${item.id}" data-price="${item.precio_final}">
+                      $${formatNumber(item.precio_final)}
+                  </span>
+              </p>
+          </div>
+          <div class="flex items-center ml-2">
+              <div class="quantity-controls flex items-center gap-px rounded-md overflow-hidden">
+                  <button data-id="${item.id}" class="quantity-change p-1 text-sm font-bold">-</button>
+                  <input type="number" min="1" class="quantity-input w-12 text-center text-sm px-1 mx-px focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]" data-id="${item.id}" value="${item.quantity}" />
+                  <button data-id="${item.id}" class="quantity-change p-1 text-sm font-bold">+</button>
+              </div>
+              <div class="text-right font-mono text-base ml-2 line-total w-24" data-id="${item.id}">$${formatNumber(item.quantity * item.precio_final)}</div>
+              <button data-id="${item.id}" class="remove-item-btn text-red-400 hover:text-red-300 p-1 ml-1 rounded-full">
+                  <i class="fas fa-trash-alt"></i>
+              </button>
+          </div>`;
+      cartItemsContainer.appendChild(cartItem);
+    });
   }
-
+  updateTotals();
+  toggleSaveButton();
+  addPriceEditListeners();
+}
   async function addProductToCart(productId) {
     const productInfo = allProducts.find((p) => p.id == productId);
 

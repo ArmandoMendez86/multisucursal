@@ -172,7 +172,7 @@ $logo = !empty($_SESSION['logo_url']) ? '/multi-sucursal/public' . $_SESSION['lo
       </p>
       <button id="logout-button"
         class="tooltip-container w-full mt-4 text-left text-sm text-red-500 hover:text-red-600 flex items-center">
-        <i class="fas fa-sign-out-alt fa-fw w-6 h-6"></i>
+        <i class="fas fa-2ml fa-sign-out-alt fa-fw w-6 h-6"></i>
         <span class="nav-text ml-3">Cerrar Sesión</span>
         <span class="tooltip">Cerrar Sesión</span>
       </button>

@@ -11,20 +11,8 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <style>
-        .tab-button.active {
-        border-color: var(--color-accent);
-        background-color: var(--color-accent);
-        color: white;
-    }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-
-    table.dataTable thead th {
-        border-bottom: 1px solid var(--color-border) !important;
-    }
-    table.dataTable.no-footer {
-        border-bottom: none;
-    }
+       
+   
     .modal-body {
         /* Se ajusta la altura para dar más espacio a las pestañas y el footer */
         max-height: 60vh;

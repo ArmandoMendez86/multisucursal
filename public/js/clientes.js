@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ],
     lengthChange: true,
     pageLength: 15,
-    lengthMenu: [[15, 30, 60, -1], [15, 30, 60, "Todos"]],
+    lengthMenu: [[15, 30, 60], [15, 30, 60]],
     columnDefs: [{
       targets: 3,
       render: function (data, type) {

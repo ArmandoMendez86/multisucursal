@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
             info: true,
             lengthChange: true,
             pageLength: 10,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+            lengthMenu: [[10, 25, 50], [10, 25, 50]],
             language: { url: 'js/es.json' },
             dom: "<'flex justify-between'lf>" + "<'clear'>" + "<'flex justify-center mb-8'B>" + 'rtip',
         });
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function () {
             info: true,
             lengthChange: true,
             pageLength: 10,
-            lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "Todos"]],
+            lengthMenu: [[10, 25, 50], [10, 25, 50]],
             language: { url: 'js/es.json' },
             dom: "<'flex justify-between'lf>" + "<'clear'>" + "<'flex justify-center mb-8'B>" + 'rtip',
         });
