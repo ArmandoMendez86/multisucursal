@@ -2,7 +2,10 @@
 // Recibimos los datos de la venta desde el controlador
 $venta = $data['venta'];
 $items = $data['items'];
-$subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del total de la venta para permitir el cálculo del IVA
+$subtotal = 0;
+$esFactura = isset($venta['estado']) && strtolower($venta['estado']) === 'completada';
+$docLabel = $esFactura ? 'FACTURA' : 'PROFORMA';
+$badgeCls = $esFactura ? 'bg-slate-100' : 'bg-slate-100';
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -42,7 +45,8 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
 <body class="bg-gray-100">
 
     <div class="no-print fixed bottom-5 right-5">
-        <button onclick="window.print()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full shadow-lg transition-transform transform hover:scale-110">
+        <button onclick="window.print()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-full shadow-lg transition-transform transform hover:scale-110">
             <i class="fas fa-print text-xl"></i>
         </button>
     </div>
@@ -51,10 +55,20 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
 
         <header class="flex justify-between items-start pb-6 border-b border-gray-200 mb-6">
             <div>
-                <h2 class="text-xl font-bold text-gray-900 flex items-center">
+                <div class="mb-1">
+                    <span
+                        class="inline-block py-0.5 rounded text-black text-2xl font-bold tracking-widest uppercase <?php echo $badgeCls; ?>">
+                        <?php echo $docLabel; ?>
+                    </span>
+                </div>
+                <h2 class="text-lg text-gray-900 flex items-center">
                     <i class="fas fa-store mr-2 text-blue-600"></i> <!-- Icon for branch -->
                     <?php echo htmlspecialchars($venta['sucursal_nombre']); ?>
                 </h2>
+                <p class="text-sm text-gray-600 flex items-center mt-1">
+                    <i class="fas fa-user mr-2 text-gray-500"></i> <!-- Icon for address -->
+                    <?php echo 'Usuario: '. htmlspecialchars($venta['vendedor']); ?>
+                </p>
                 <p class="text-sm text-gray-600 flex items-center mt-1">
                     <i class="fas fa-map-marker-alt mr-2 text-gray-500"></i> <!-- Icon for address -->
                     <?php echo htmlspecialchars($venta['sucursal_direccion']); ?>
@@ -75,7 +89,8 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
                     <i class="fas fa-hashtag ml-2 text-gray-500"></i> <!-- Icon for folio -->
                 </p>
                 <p class="text-sm text-gray-600 flex items-center justify-end">
-                    Fecha: <span class="font-semibold ml-2"><?php echo date("d/m/Y", strtotime($venta['fecha'])); ?></span>
+                    Fecha: <span
+                        class="font-semibold ml-2"><?php echo date("d/m/Y", strtotime($venta['fecha'])); ?></span>
                     <i class="fas fa-calendar-alt ml-2 text-gray-500"></i> <!-- Icon for date -->
                 </p>
             </div>
@@ -126,11 +141,14 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
                         <tr class="border-b border-gray-100">
                             <td class="py-2 px-3 align-top text-sm"><?php echo htmlspecialchars($item['cantidad']); ?></td>
                             <td class="py-2 px-3">
-                                <p class="font-semibold text-sm"><?php echo htmlspecialchars($item['producto_nombre']); ?></p>
+                                <p class="font-semibold text-sm"><?php echo htmlspecialchars($item['producto_nombre']); ?>
+                                </p>
                                 <p class="text-xxs text-gray-500">SKU: <?php echo htmlspecialchars($item['sku']); ?></p>
                             </td>
-                            <td class="py-2 px-3 text-right align-top text-sm">$<?php echo number_format($item['precio_unitario'], 2); ?></td>
-                            <td class="py-2 px-3 text-right align-top text-sm">$<?php echo number_format($item['subtotal'], 2); ?></td>
+                            <td class="py-2 px-3 text-right align-top text-sm">
+                                $<?php echo number_format($item['precio_unitario'], 2); ?></td>
+                            <td class="py-2 px-3 text-right align-top text-sm">
+                                $<?php echo number_format($item['subtotal'], 2); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>
@@ -164,7 +182,8 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
                     </div>
                 <?php endif; ?>
 
-                <div class="flex justify-between text-gray-900 font-bold text-xl pt-2 border-t border-gray-200 items-center">
+                <div
+                    class="flex justify-between text-gray-900 font-bold text-xl pt-2 border-t border-gray-200 items-center">
                     <span class="flex items-center"><i class="fas fa-calculator mr-2"></i> Total:</span>
                     <span>$<?php echo number_format($total_final, 2); ?></span>
                 </div>
@@ -172,18 +191,18 @@ $subtotal = 0; // Se calcula para mostrar, no se toma directamente del total del
         </section>
 
         <footer class="mt-16 pt-6 border-t border-gray-200 text-center text-gray-500 text-xs">
-            <p class="flex items-center justify-center">
+            <!--   <p class="flex items-center justify-center">
                 <i class="fas fa-info-circle mr-2"></i> Esta cotización tiene una vigencia de 15 días.
-            </p>
+            </p> -->
             <p class="flex items-center justify-center mt-1">
                 <i class="fas fa-heart mr-2 text-red-500"></i> ¡Gracias por su preferencia!
             </p>
-            <p class="flex items-center justify-center mt-2">
+            <!--  <p class="flex items-center justify-center mt-2">
                 <a href="https://www.facebook.com/Megapartygdloficial" target="_blank" class="text-blue-600 hover:underline flex items-center">
                     <i class="fab fa-facebook-square mr-2 text-blue-600 text-lg"></i>
                     Megapartygdloficial
                 </a>
-            </p>
+            </p> -->
         </footer>
     </div>
 </body>

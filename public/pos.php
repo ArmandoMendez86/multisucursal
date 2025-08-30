@@ -566,6 +566,32 @@ require_once __DIR__ . '/../parciales/verificar_sesion.php';
     </div>
   </div>
 
+  <!-- Modal: descripción para productos que inician con # -->
+  <div id="desc-modal" class="fixed inset-0 z-50 flex items-center justify-center modal-overlay hidden">
+    <div class="bg-[var(--color-bg-secondary)] rounded-lg shadow-xl w-full max-w-md">
+      <div class="p-6 border-b border-[var(--color-border)]">
+        <h2 class="text-2xl font-bold text-[var(--color-text-primary)]">Descripción del producto</h2>
+      </div>
+      <div class="p-6">
+        <input id="desc-input" type="text"
+          class="w-full bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded p-2"
+          placeholder="Escribe la descripción">
+      </div>
+      <div class="p-6 bg-[var(--color-bg-primary)] flex justify-end items-center rounded-b-lg">
+        <button type="button" id="desc-cancel-btn"
+          class="bg-[var(--color-border)] hover:bg-[var(--color-text-secondary)] text-[var(--color-text-primary)] font-bold py-2 px-4 rounded-lg mr-2">
+          Cancelar
+        </button>
+        <button type="button" id="desc-confirm-btn"
+          class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg">
+          Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+
   <!-- Scripts -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>

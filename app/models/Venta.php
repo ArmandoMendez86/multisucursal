@@ -39,17 +39,32 @@ class Venta
             $stmt_venta->execute();
             $idVenta = $this->conn->lastInsertId();
 
-            $stmt_detalle = $this->conn->prepare("INSERT INTO venta_detalles (id_venta, id_producto, cantidad, precio_unitario, subtotal) VALUES (:id_venta, :id_producto, :cantidad, :precio_unitario, :subtotal)");
+            // INSERT de detalles con costo y descripción
+            $stmt_detalle = $this->conn->prepare("
+            INSERT INTO venta_detalles
+                (id_venta, id_producto, cantidad, precio_unitario, subtotal, costo, descripcion)
+            VALUES
+                (:id_venta, :id_producto, :cantidad, :precio_unitario, :subtotal, :costo, :descripcion)
+            ");
 
             foreach ($data['cart'] as $item) {
                 $precio_unitario = $item['precio_final'];
                 $subtotal_item = $item['quantity'] * $precio_unitario;
 
-                $stmt_detalle->bindParam(':id_venta', $idVenta);
-                $stmt_detalle->bindParam(':id_producto', $item['id']);
+                // costo siempre desde catálogo
+                $producto = $this->productoModel->getById($item['id'], $data['id_sucursal']);
+                $costo = isset($producto['costo']) ? (float) $producto['costo'] : 0;
+
+                // descripción opcional
+                $descripcion = (isset($item['descripcion']) && $item['descripcion'] !== '') ? $item['descripcion'] : null;
+
+                $stmt_detalle->bindParam(':id_venta', $idVenta, PDO::PARAM_INT);
+                $stmt_detalle->bindParam(':id_producto', $item['id'], PDO::PARAM_INT);
                 $stmt_detalle->bindParam(':cantidad', $item['quantity']);
                 $stmt_detalle->bindParam(':precio_unitario', $precio_unitario);
                 $stmt_detalle->bindParam(':subtotal', $subtotal_item);
+                $stmt_detalle->bindParam(':costo', $costo);
+                $stmt_detalle->bindParam(':descripcion', $descripcion);
                 $stmt_detalle->execute();
             }
 
@@ -94,20 +109,34 @@ class Venta
             $stmt_venta->bindParam(':id_venta', $idVenta);
             $stmt_venta->execute();
 
-            $stmt_detalle = $this->conn->prepare("INSERT INTO venta_detalles (id_venta, id_producto, cantidad, precio_unitario, subtotal) VALUES (:id_venta, :id_producto, :cantidad, :precio_unitario, :subtotal)");
+            // INSERT de detalles con costo y descripción
+            $stmt_detalle = $this->conn->prepare("
+            INSERT INTO venta_detalles
+                (id_venta, id_producto, cantidad, precio_unitario, subtotal, costo, descripcion)
+            VALUES
+                (:id_venta, :id_producto, :cantidad, :precio_unitario, :subtotal, :costo, :descripcion)
+            ");
 
             foreach ($data['cart'] as $item) {
                 $precio_unitario = $item['precio_final'];
                 $subtotal_item = $item['quantity'] * $precio_unitario;
 
-                $stmt_detalle->bindParam(':id_venta', $idVenta);
-                $stmt_detalle->bindParam(':id_producto', $item['id']);
+                // costo siempre desde catálogo
+                $producto = $this->productoModel->getById($item['id'], $data['id_sucursal']);
+                $costo = isset($producto['costo']) ? (float) $producto['costo'] : 0;
+
+                // descripción opcional
+                $descripcion = (isset($item['descripcion']) && $item['descripcion'] !== '') ? $item['descripcion'] : null;
+
+                $stmt_detalle->bindParam(':id_venta', $idVenta, PDO::PARAM_INT);
+                $stmt_detalle->bindParam(':id_producto', $item['id'], PDO::PARAM_INT);
                 $stmt_detalle->bindParam(':cantidad', $item['quantity']);
                 $stmt_detalle->bindParam(':precio_unitario', $precio_unitario);
                 $stmt_detalle->bindParam(':subtotal', $subtotal_item);
+                $stmt_detalle->bindParam(':costo', $costo);
+                $stmt_detalle->bindParam(':descripcion', $descripcion);
                 $stmt_detalle->execute();
             }
-
             return true;
         } catch (Exception $e) {
             throw $e;

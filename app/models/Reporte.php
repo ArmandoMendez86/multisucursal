@@ -341,16 +341,14 @@ class Reporte
         foreach ($rows as $r) {
             $acciones = '';
             $estado = $r['estado'] ?? 'Completada';
-            if ($estado === 'Completada') {
+            if ($estado === 'Completada' || $estado === 'Pendiente') {
                 $acciones = '<div class="flex items-center space-x-2">'
                     . '<button class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1 px-3 rounded-lg text-xs print-ticket-win-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Imprimir (Windows)"><i class="fas fa-print"></i></button>'
                     . '<button class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded-lg text-xs print-ticket-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Imprimir Ticket"><i class="fas fa-receipt"></i></button>'
                     . '<button class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1 px-3 rounded-lg text-xs view-pdf-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Ver PDF"><i class="fas fa-file-pdf"></i></button>'
                     . '<button class="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg text-xs cancel-sale-btn" data-id="' . htmlspecialchars($r['id']) . '" title="Cancelar Venta"><i class="fas fa-times-circle"></i></button>'
                     . '</div>';
-            } elseif ($estado === 'Pendiente') {
-                $acciones = '<span class="text-gray-500 text-xs">N/A</span>';
-            } elseif ($estado === 'Cancelada') {
+            }elseif ($estado === 'Cancelada') {
                 $acciones = '<span class="text-gray-500 text-xs">Cancelada</span>';
             } elseif ($estado === 'Cotizacion') {
                 $acciones = '<div class="flex items-center space-x-2">'

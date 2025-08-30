@@ -9,7 +9,7 @@ function showConfirm(message, title = 'Confirmación') {
         // Crear el contenido del modal
         const modalContent = document.createElement('div');
         modalContent.className = 'bg-[#1e293b] rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all duration-300 ease-in-out scale-95 opacity-0';
-        
+
         modalContent.innerHTML = `
             <h2 class="text-2xl font-bold text-white mb-4">${title}</h2>
             <p class="text-gray-300 mb-6">${message}</p>
@@ -21,7 +21,7 @@ function showConfirm(message, title = 'Confirmación') {
 
         modalOverlay.appendChild(modalContent);
         document.body.appendChild(modalOverlay);
-        
+
         const okButton = modalContent.querySelector('#confirm-ok-btn');
         const cancelButton = modalContent.querySelector('#confirm-cancel-btn');
 
@@ -30,19 +30,19 @@ function showConfirm(message, title = 'Confirmación') {
             modalContent.classList.remove('scale-95', 'opacity-0');
             modalContent.classList.add('scale-100', 'opacity-100');
         });
-        
+
         // --- CORRECCIÓN DEFINITIVA ---
         // Reemplazamos el event listener 'transitionend' por un setTimeout,
         // que es más robusto y menos propenso a fallos.
         const close = (value) => {
             // Inicia la animación de salida
             modalContent.classList.add('scale-95', 'opacity-0');
-            
+
             // Espera a que la animación termine (300ms) para remover el elemento y resolver la promesa.
             setTimeout(() => {
                 modalOverlay.remove();
                 resolve(value);
-            }, 300); 
+            }, 300);
         };
 
         // Event listeners para los botones
@@ -50,3 +50,5 @@ function showConfirm(message, title = 'Confirmación') {
         cancelButton.addEventListener('click', () => close(false));
     });
 }
+
+

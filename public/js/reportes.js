@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", function () {
       processing: true,
       searching: true, // DataTables search box
       lengthMenu: [10, 25, 50, 100],
-      pageLength: 15,
+      pageLength: 10,
       ajax: {
         url: `${BASE_URL}/getSalesReportPaginated`,
         type: 'GET',
@@ -25,7 +25,16 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       },
       columns: [
-        { data: 'fecha', "render": (data) => moment(data).format('DD/MM/YYYY, h:mm a'), title: 'Fecha' },
+        {
+          data: 'fecha', render: function (data, type) {
+            const m = moment(data);
+            if (type === 'display') return m.format('DD/MM/YYYY, h:mm a'); // lo que ves
+            if (type === 'filter') return m.format('YYYY-MM-DD');         // lo que busca DataTables
+            if (type === 'sort') return m.valueOf();                    // orden correcto
+            if (type === 'export') return m.format('YYYY-MM-DD HH:mm');   // CSV/Excel/PDF
+            return data;                                        // fallback
+          }
+        },
         { data: 'id', title: 'Ticket ID' },
         { data: 'cliente', title: 'Cliente' },
         { data: 'usuario', title: 'Vendedor' },
@@ -75,9 +84,9 @@ document.addEventListener("DOMContentLoaded", function () {
       if (id) { handlePrintTicket(parseInt(id, 10)); }
     });
     $(document).on('click', '#tablaVentas .print-ticket-win-btn', async function (e) {
-        e.preventDefault();
-        const id = this.getAttribute('data-id');
-        if (id) { await handlePrintTicketViaDialog(parseInt(id, 10)); }
+      e.preventDefault();
+      const id = this.getAttribute('data-id');
+      if (id) { await handlePrintTicketViaDialog(parseInt(id, 10)); }
     });
     $(document).on('click', '#tablaVentas .view-pdf-btn', function (e) {
       e.preventDefault();
@@ -199,15 +208,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function fetchSucursalDetails() {
     try {
-        const response = await fetch(`${BASE_URL}/getSucursalActual`);
-        const result = await response.json();
-        if (result.success && result.data) {
-            sucursalActual = result.data;
-        } else {
-            console.warn("No se pudieron cargar los detalles de la sucursal.");
-        }
+      const response = await fetch(`${BASE_URL}/getSucursalActual`);
+      const result = await response.json();
+      if (result.success && result.data) {
+        sucursalActual = result.data;
+      } else {
+        console.warn("No se pudieron cargar los detalles de la sucursal.");
+      }
     } catch (error) {
-        console.error("Error de conexión al obtener detalles de la sucursal:", error);
+      console.error("Error de conexión al obtener detalles de la sucursal:", error);
     }
   }
 
@@ -218,197 +227,197 @@ document.addEventListener("DOMContentLoaded", function () {
       connectQz();
     }
   }
-  
+
   const ticketWidth = 30;
   const removeAccents = (str) => str ? str.normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
   const formatCurrencyForTicket = (value) => parseFloat(value).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  
+
   const padLR = (left, right) => {
-      left = removeAccents(left || "");
-      right = removeAccents(right || "");
-      const padding = Math.max(0, ticketWidth - left.length - right.length);
-      return left + " ".repeat(padding) + right;
+    left = removeAccents(left || "");
+    right = removeAccents(right || "");
+    const padding = Math.max(0, ticketWidth - left.length - right.length);
+    return left + " ".repeat(padding) + right;
   };
 
   const padMultiple = (c1, c2, c3, c4) => {
-      const w1 = 5, w2 = 16, w3 = 8, w4 = 8;
-      c1 = (c1 || "").padEnd(w1);
-      c2 = (c2 || "").padEnd(w2);
-      c3 = (c3 || "").padStart(w3);
-      c4 = (c4 || "").padStart(w4);
-      const line = `${c1} ${c2}${c3}${c4}`;
-      return line.substring(0, ticketWidth);
+    const w1 = 5, w2 = 16, w3 = 8, w4 = 8;
+    c1 = (c1 || "").padEnd(w1);
+    c2 = (c2 || "").padEnd(w2);
+    c3 = (c3 || "").padStart(w3);
+    c4 = (c4 || "").padStart(w4);
+    const line = `${c1} ${c2}${c3}${c4}`;
+    return line.substring(0, ticketWidth);
   };
 
   async function printTicketQZ(printerName, ticketData) {
-      if (!qzTrayConnected) {
-          showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
-          return;
+    if (!qzTrayConnected) {
+      showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
+      return;
+    }
+    const config = qz.configs.create(printerName);
+    const venta = ticketData.venta || {};
+    const items = ticketData.items || [];
+
+    const companyName = "MEGA PARTY GDL";
+    const companyRfc = "PIBP7906297W4";
+    const sucursalDireccion = venta.sucursal_direccion || "Dirección no disponible";
+
+    let dataToPrint = [
+      "\x1B\x40", // Reset
+      "\x1B\x74\x11", // Codepage CP850
+      "\x1B\x61\x01", // Center
+      "\x1B\x21\x08", // Bold
+      removeAccents(companyName) + "\x0A",
+      "\x1B\x21\x00", // Normal
+      removeAccents(companyRfc) + "\x0A",
+      removeAccents(sucursalDireccion) + "\x0A",
+      "\x0A",
+      removeAccents("FACTURA") + "\x0A",
+      removeAccents(`F${venta.id}`) + "\x0A",
+      "\x0A",
+      "\x1B\x61\x00", // Left align
+      "\x1B\x21\x08", // Bold
+      "ADQUIRIENTE\x0A",
+      "\x1B\x21\x00", // Normal
+      removeAccents(companyName) + "\x0A",
+      removeAccents(companyRfc) + "\x0A",
+      removeAccents(sucursalDireccion) + "\x0A",
+      "\x0A",
+      padLR("FECHA:", new Date(venta.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })) + "\x0A",
+      padLR("MONEDA:", "PESOS MEXICANOS") + "\x0A",
+      padLR("Usuario:", venta.vendedor) + "\x0A",
+      padLR("SUCURSAL:", venta.sucursal_nombre) + "\x0A",
+      "-".repeat(ticketWidth) + "\x0A",
+      padMultiple("CANT", "DESCRIPCION", "P/U", "TOTAL") + "\x0A",
+      "-".repeat(ticketWidth) + "\x0A",
+    ];
+
+    items.forEach((item) => {
+      let name = item.producto_nombre || "Producto";
+      const availableWidth = 16;
+      if (name.length > availableWidth) {
+        name = name.substring(0, availableWidth);
       }
-      const config = qz.configs.create(printerName);
-      const venta = ticketData.venta || {};
-      const items = ticketData.items || [];
-      
-      const companyName = "MEGA PARTY GDL";
-      const companyRfc = "PIBP7906297W4";
-      const sucursalDireccion = venta.sucursal_direccion || "Dirección no disponible";
+      dataToPrint.push(padMultiple(
+        formatCurrencyForTicket(item.cantidad),
+        name,
+        formatCurrencyForTicket(item.precio_unitario),
+        formatCurrencyForTicket(item.subtotal)
+      ) + "\x0A");
+    });
 
-      let dataToPrint = [
-          "\x1B\x40", // Reset
-          "\x1B\x74\x11", // Codepage CP850
-          "\x1B\x61\x01", // Center
-          "\x1B\x21\x08", // Bold
-          removeAccents(companyName) + "\x0A",
-          "\x1B\x21\x00", // Normal
-          removeAccents(companyRfc) + "\x0A",
-          removeAccents(sucursalDireccion) + "\x0A",
-          "\x0A",
-          removeAccents("FACTURA") + "\x0A",
-          removeAccents(`F${venta.id}`) + "\x0A",
-          "\x0A",
-          "\x1B\x61\x00", // Left align
-          "\x1B\x21\x08", // Bold
-          "ADQUIRIENTE\x0A",
-          "\x1B\x21\x00", // Normal
-          removeAccents(companyName) + "\x0A",
-          removeAccents(companyRfc) + "\x0A",
-          removeAccents(sucursalDireccion) + "\x0A",
-          "\x0A",
-          padLR("FECHA:", new Date(venta.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })) + "\x0A",
-          padLR("MONEDA:", "PESOS MEXICANOS") + "\x0A",
-          padLR("Usuario:", venta.vendedor) + "\x0A",
-          padLR("SUCURSAL:", venta.sucursal_nombre) + "\x0A",
-          "-".repeat(ticketWidth) + "\x0A",
-          padMultiple("CANT", "DESCRIPCION", "P/U", "TOTAL") + "\x0A",
-          "-".repeat(ticketWidth) + "\x0A",
-      ];
+    dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
+    dataToPrint.push("\x1B\x61\x02"); // Right align
+    dataToPrint.push(padLR("TOTAL $", formatCurrencyForTicket(venta.total)) + "\x0A");
 
-      items.forEach((item) => {
-          let name = item.producto_nombre || "Producto";
-          const availableWidth = 16;
-          if (name.length > availableWidth) {
-              name = name.substring(0, availableWidth);
-          }
-          dataToPrint.push(padMultiple(
-              formatCurrencyForTicket(item.cantidad),
-              name,
-              formatCurrencyForTicket(item.precio_unitario),
-              formatCurrencyForTicket(item.subtotal)
-          ) + "\x0A");
-      });
-
-      dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
-      dataToPrint.push("\x1B\x61\x02"); // Right align
-      dataToPrint.push(padLR("TOTAL $", formatCurrencyForTicket(venta.total)) + "\x0A");
-
-      let totalRecibido = 0;
-      if (venta.metodo_pago) {
-          try {
-              const payments = JSON.parse(venta.metodo_pago);
-              if (Array.isArray(payments)) {
-                  payments.forEach(pago => {
-                      const monto = parseFloat(pago.amount) || 0;
-                      totalRecibido += monto;
-                      const etiqueta = (pago.method === "Efectivo") ? "Recibido" : pago.method;
-                      dataToPrint.push(padLR(`${etiqueta} $`, formatCurrencyForTicket(monto)) + "\x0A");
-                  });
-              }
-          } catch (e) {
-              totalRecibido = parseFloat(venta.total) || 0;
-              dataToPrint.push(padLR("Recibido $", formatCurrencyForTicket(totalRecibido)) + "\x0A");
-          }
-      }
-
-      const cambio = totalRecibido - (parseFloat(venta.total) || 0);
-      if (cambio > 0.005) {
-          dataToPrint.push(padLR("Cambio $", formatCurrencyForTicket(cambio)) + "\x0A");
-      }
-
-      dataToPrint.push("\x0A");
-      dataToPrint.push("\x1B\x61\x01"); // Center
-      dataToPrint.push("Gracias por su Visita\x0A");
-      dataToPrint.push("\x0A\x0A\x0A");
-      dataToPrint.push("\x1D\x56\x41\x03"); // Cut
-
+    let totalRecibido = 0;
+    if (venta.metodo_pago) {
       try {
-          await qz.print(config, dataToPrint);
-          showToast("Ticket enviado a la impresora.", "success");
-      } catch (err) {
-          console.error("Error al imprimir:", err);
-          showToast("Error al enviar el ticket a la impresora.", "error");
-      }
-  }
-  
-  async function printCashCutQZ(printerName, reportData) {
-      if (!qzTrayConnected) {
-          showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
-          return;
-      }
-      const config = qz.configs.create(printerName);
-
-      const { sucursal, corte, cajaInicial, gastosDetalle, abonosDetalle, fechaCorte, usuario } = reportData;
-      
-      const totalIngresos = (cajaInicial || 0) + (corte.ventas_efectivo || 0) + (corte.abonos_clientes || 0) + (corte.ventas_tarjeta || 0);
-      const totalEntregar = (cajaInicial || 0) + (corte.ventas_efectivo || 0) + (corte.abonos_clientes || 0) - (corte.total_gastos || 0);
-
-      let dataToPrint = [
-          "\x1B\x40", // Reset
-          "\x1B\x74\x11", // Codepage
-          "\x1B\x61\x01", // Center
-          "\x1B\x21\x18", // Bold + Double Height
-          "Mega Party\x0A",
-          "\x1B\x21\x08", // Bold
-          removeAccents(`Sucursal: ${sucursal.nombre}`)+ "\x0A",
-          "\x1B\x21\x00", // Normal
-          removeAccents(sucursal.direccion || '') + "\x0A",
-          removeAccents(`Teléf.:${sucursal.telefono || ''}`) + "\x0A",
-          "\x0A",
-          "\x1B\x61\x00", // Left
-          padLR("Fecha del Corte:", new Date(fechaCorte + 'T00:00:00').toLocaleDateString('es-MX', {day:'2-digit', month:'2-digit', year:'numeric'})) + "\x0A",
-          padLR("Generado el:", new Date().toLocaleString('es-MX')) + "\x0A",
-          padLR("Usuario:", usuario) + "\x0A",
-          "\x0A",
-          "\x1B\x21\x08", // Bold
-          padLR("Total Venta:", `$${formatCurrencyForTicket(corte.total_ventas)}`) + "\x0A",
-          "\x1B\x21\x00", // Normal
-          "\x0A",
-          "Ingresos:\x0A",
-          padLR("(+) Caja Inicial:", `$${formatCurrencyForTicket(cajaInicial)}`) + "\x0A",
-          padLR("(+) Efectivo:", `$${formatCurrencyForTicket(corte.ventas_efectivo)}`) + "\x0A",
-          padLR("(+) Abonos Clientes:", `$${formatCurrencyForTicket(corte.abonos_clientes)}`) + "\x0A",
-          padLR("(+) Tarjetas:", `$${formatCurrencyForTicket(corte.ventas_tarjeta)}`) + "\x0A",
-          "-".repeat(ticketWidth) + "\x0A",
-          padLR("Total:", `$${formatCurrencyForTicket(totalIngresos)}`) + "\x0A",
-          "\x0A",
-          "Egresos\x0A"
-      ];
-
-      if (gastosDetalle && gastosDetalle.length > 0) {
-          gastosDetalle.forEach(gasto => {
-              let desc = gasto.descripcion || "Gasto";
-              if (desc.length > ticketWidth - 14) desc = desc.substring(0, ticketWidth - 14);
-              dataToPrint.push(padLR(removeAccents(desc), `$${formatCurrencyForTicket(gasto.monto)}`) + "\x0A");
+        const payments = JSON.parse(venta.metodo_pago);
+        if (Array.isArray(payments)) {
+          payments.forEach(pago => {
+            const monto = parseFloat(pago.amount) || 0;
+            totalRecibido += monto;
+            const etiqueta = (pago.method === "Efectivo") ? "Recibido" : pago.method;
+            dataToPrint.push(padLR(`${etiqueta} $`, formatCurrencyForTicket(monto)) + "\x0A");
           });
-      } else {
-          dataToPrint.push(padLR("Sin gastos registrados", "$0.00") + "\x0A");
+        }
+      } catch (e) {
+        totalRecibido = parseFloat(venta.total) || 0;
+        dataToPrint.push(padLR("Recibido $", formatCurrencyForTicket(totalRecibido)) + "\x0A");
       }
-      
-      dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
-      dataToPrint.push(padLR("Total:", `$${formatCurrencyForTicket(corte.total_gastos)}`) + "\x0A");
-      dataToPrint.push("\x0A\x0A");
-      dataToPrint.push("\x1B\x61\x01"); // Center
-      dataToPrint.push("\x1B\x21\x18"); // Bold + Double Height
-      dataToPrint.push(padLR("Total a entregar:", `$${formatCurrencyForTicket(totalEntregar)}`) + "\x0A");
-      dataToPrint.push("\x0A\x0A\x0A");
-      dataToPrint.push("\x1D\x56\x41\x03"); // Cut
+    }
 
-      try {
-          await qz.print(config, dataToPrint);
-          showToast("Corte de caja enviado a la impresora.", "success");
-      } catch (err) {
-          console.error("Error al imprimir el corte de caja:", err);
-          showToast("Error al enviar el corte de caja a la impresora.", "error");
-      }
+    const cambio = totalRecibido - (parseFloat(venta.total) || 0);
+    if (cambio > 0.005) {
+      dataToPrint.push(padLR("Cambio $", formatCurrencyForTicket(cambio)) + "\x0A");
+    }
+
+    dataToPrint.push("\x0A");
+    dataToPrint.push("\x1B\x61\x01"); // Center
+    dataToPrint.push("Gracias por su Visita\x0A");
+    dataToPrint.push("\x0A\x0A\x0A");
+    dataToPrint.push("\x1D\x56\x41\x03"); // Cut
+
+    try {
+      await qz.print(config, dataToPrint);
+      showToast("Ticket enviado a la impresora.", "success");
+    } catch (err) {
+      console.error("Error al imprimir:", err);
+      showToast("Error al enviar el ticket a la impresora.", "error");
+    }
+  }
+
+  async function printCashCutQZ(printerName, reportData) {
+    if (!qzTrayConnected) {
+      showToast("No se puede imprimir: QZ Tray está desconectado.", "error");
+      return;
+    }
+    const config = qz.configs.create(printerName);
+
+    const { sucursal, corte, cajaInicial, gastosDetalle, abonosDetalle, fechaCorte, usuario } = reportData;
+
+    const totalIngresos = (cajaInicial || 0) + (corte.ventas_efectivo || 0) + (corte.abonos_clientes || 0) + (corte.ventas_tarjeta || 0);
+    const totalEntregar = (cajaInicial || 0) + (corte.ventas_efectivo || 0) + (corte.abonos_clientes || 0) - (corte.total_gastos || 0);
+
+    let dataToPrint = [
+      "\x1B\x40", // Reset
+      "\x1B\x74\x11", // Codepage
+      "\x1B\x61\x01", // Center
+      "\x1B\x21\x18", // Bold + Double Height
+      "Mega Party\x0A",
+      "\x1B\x21\x08", // Bold
+      removeAccents(`Sucursal: ${sucursal.nombre}`) + "\x0A",
+      "\x1B\x21\x00", // Normal
+      removeAccents(sucursal.direccion || '') + "\x0A",
+      removeAccents(`Teléf.:${sucursal.telefono || ''}`) + "\x0A",
+      "\x0A",
+      "\x1B\x61\x00", // Left
+      padLR("Fecha del Corte:", new Date(fechaCorte + 'T00:00:00').toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' })) + "\x0A",
+      padLR("Generado el:", new Date().toLocaleString('es-MX')) + "\x0A",
+      padLR("Usuario:", usuario) + "\x0A",
+      "\x0A",
+      "\x1B\x21\x08", // Bold
+      padLR("Total Venta:", `$${formatCurrencyForTicket(corte.total_ventas)}`) + "\x0A",
+      "\x1B\x21\x00", // Normal
+      "\x0A",
+      "Ingresos:\x0A",
+      padLR("(+) Caja Inicial:", `$${formatCurrencyForTicket(cajaInicial)}`) + "\x0A",
+      padLR("(+) Efectivo:", `$${formatCurrencyForTicket(corte.ventas_efectivo)}`) + "\x0A",
+      padLR("(+) Abonos Clientes:", `$${formatCurrencyForTicket(corte.abonos_clientes)}`) + "\x0A",
+      padLR("(+) Tarjetas:", `$${formatCurrencyForTicket(corte.ventas_tarjeta)}`) + "\x0A",
+      "-".repeat(ticketWidth) + "\x0A",
+      padLR("Total:", `$${formatCurrencyForTicket(totalIngresos)}`) + "\x0A",
+      "\x0A",
+      "Egresos\x0A"
+    ];
+
+    if (gastosDetalle && gastosDetalle.length > 0) {
+      gastosDetalle.forEach(gasto => {
+        let desc = gasto.descripcion || "Gasto";
+        if (desc.length > ticketWidth - 14) desc = desc.substring(0, ticketWidth - 14);
+        dataToPrint.push(padLR(removeAccents(desc), `$${formatCurrencyForTicket(gasto.monto)}`) + "\x0A");
+      });
+    } else {
+      dataToPrint.push(padLR("Sin gastos registrados", "$0.00") + "\x0A");
+    }
+
+    dataToPrint.push("-".repeat(ticketWidth) + "\x0A");
+    dataToPrint.push(padLR("Total:", `$${formatCurrencyForTicket(corte.total_gastos)}`) + "\x0A");
+    dataToPrint.push("\x0A\x0A");
+    dataToPrint.push("\x1B\x61\x01"); // Center
+    dataToPrint.push("\x1B\x21\x18"); // Bold + Double Height
+    dataToPrint.push(padLR("Total a entregar:", `$${formatCurrencyForTicket(totalEntregar)}`) + "\x0A");
+    dataToPrint.push("\x0A\x0A\x0A");
+    dataToPrint.push("\x1D\x56\x41\x03"); // Cut
+
+    try {
+      await qz.print(config, dataToPrint);
+      showToast("Corte de caja enviado a la impresora.", "success");
+    } catch (err) {
+      console.error("Error al imprimir el corte de caja:", err);
+      showToast("Error al enviar el corte de caja a la impresora.", "error");
+    }
   }
 
   async function handlePrintTicket(saleId) {
@@ -467,17 +476,17 @@ document.addEventListener("DOMContentLoaded", function () {
   async function handlePrintTicketViaDialog(saleId) {
     showToast("Preparando vista previa de impresión...", "info");
     try {
-        const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
-        const result = await response.json();
-        if (result.success) {
-            const html = buildTicketHtml(result.data);
-            openPrintDialogWithTicket(html, saleId);
-        } else {
-            showToast(result.message || "No se pudo obtener el ticket.", "error");
-        }
+      const response = await fetch(`${BASE_URL}/getTicketDetails?id=${saleId}`);
+      const result = await response.json();
+      if (result.success) {
+        const html = buildTicketHtml(result.data);
+        openPrintDialogWithTicket(html, saleId);
+      } else {
+        showToast(result.message || "No se pudo obtener el ticket.", "error");
+      }
     } catch (err) {
-        console.error("Error al obtener datos del ticket para diálogo:", err);
-        showToast("Error de conexión al preparar la vista previa.", "error");
+      console.error("Error al obtener datos del ticket para diálogo:", err);
+      showToast("Error de conexión al preparar la vista previa.", "error");
     }
   }
 
@@ -734,15 +743,15 @@ document.addEventListener("DOMContentLoaded", function () {
     const dateForPrint = cashCutDateInput.value;
     const detailedExpenses = await fetchDetailedData(`${BASE_URL}/getDetailedExpenses`, dateForPrint);
     const detailedClientPayments = await fetchDetailedData(`${BASE_URL}/getDetailedClientPayments`, dateForPrint);
-    
+
     const reportData = {
-        sucursal: sucursalActual,
-        corte: currentCashCutData,
-        cajaInicial: currentInitialCash,
-        gastosDetalle: detailedExpenses,
-        abonosDetalle: detailedClientPayments,
-        fechaCorte: dateForPrint,
-        usuario: userFilterSelect ? userFilterSelect.options[userFilterSelect.selectedIndex].text : 'N/A'
+      sucursal: sucursalActual,
+      corte: currentCashCutData,
+      cajaInicial: currentInitialCash,
+      gastosDetalle: detailedExpenses,
+      abonosDetalle: detailedClientPayments,
+      fechaCorte: dateForPrint,
+      usuario: userFilterSelect ? userFilterSelect.options[userFilterSelect.selectedIndex].text : 'N/A'
     };
 
     if (printMethod === 'service') {
@@ -769,7 +778,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     } else { // 'qztray'
       showToast("Enviando corte de caja a QZ Tray...", "info");
-       if (!printerConfig.name) {
+      if (!printerConfig.name) {
         showToast("Impresora no configurada para QZ Tray.", "error");
         return;
       }
@@ -788,7 +797,7 @@ document.addEventListener("DOMContentLoaded", function () {
     await fetchCashCut();
     await getPrintPrefs();
   }
-  
+
   // Event Listeners
   if (generateCashCutBtn) generateCashCutBtn.addEventListener("click", fetchCashCut);
   if (printCashCutBtn) printCashCutBtn.addEventListener("click", printCashCutReport);

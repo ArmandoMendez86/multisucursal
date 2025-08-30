@@ -56,6 +56,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const fechaInput = document.getElementById('fecha_apertura');
   const modalErrorMessage = document.getElementById('modal-error-message');
 
+  const descModal = document.getElementById("desc-modal");
+  const descInput = document.getElementById("desc-input");
+  const descConfirmBtn = document.getElementById("desc-confirm-btn");
+  const descCancelBtn = document.getElementById("desc-cancel-btn");
+
+
   let montoInicialAn;
 
   let allProducts = [];
@@ -226,44 +232,52 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
- // Reemplaza también esta función en tu archivo /public/js/pos.js
+  // Reemplaza también esta función en tu archivo /public/js/pos.js
 
-function renderCart() {
-  cartItemsContainer.innerHTML = "";
-  const searchTerm = searchCartInput.value.toLowerCase();
-  const filteredCart = cart.filter(
-    (item) =>
-      item.nombre.toLowerCase().includes(searchTerm) ||
-      (item.sku && item.sku.toLowerCase().includes(searchTerm)) ||
-      (item.codigos_barras && item.codigos_barras.toLowerCase().includes(searchTerm))
-  );
+  function renderCart() {
+    cartItemsContainer.innerHTML = "";
+    const searchTerm = searchCartInput.value.toLowerCase();
+    const filteredCart = cart.filter(
+      (item) =>
+        item.nombre.toLowerCase().includes(searchTerm) ||
+        (item.sku && item.sku.toLowerCase().includes(searchTerm)) ||
+        (item.codigos_barras && item.codigos_barras.toLowerCase().includes(searchTerm))
+    );
 
-  if (filteredCart.length === 0) {
-    cartItemsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">El carrito está vacío</div>`;
-  } else {
-    filteredCart.forEach((item) => {
-      const cartItem = document.createElement("div");
-      cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
-      
-      // ----- LÍNEA MODIFICADA -----
-      // Usamos la imagen real del item si existe.
-      const imageUrl = item.imagen_url 
-        ? `${BASE_URL}/public/${item.imagen_url}` 
-        : `https://placehold.co/50x50/334155/E2E8F0?text=No+Img`;
-      
-      let priceTypeLabel = "";
-      if (item.tipo_precio_aplicado === "Especial") {
-        priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';
-      } else if (item.tipo_precio_aplicado === "Guardado") {
-        priceTypeLabel = '<span class="text-xxs text-yellow-400">Guardado</span> ';
-      } else if (String(item.tipo_precio_aplicado || '').startsWith('P')) {
-        priceTypeLabel = `<span class="text-xxs text-blue-400">${item.tipo_precio_aplicado}</span> `;
-      }
+    if (filteredCart.length === 0) {
+      cartItemsContainer.innerHTML = `<div class="text-center text-[var(--color-text-secondary)] py-10">El carrito está vacío</div>`;
+    } else {
+      filteredCart.forEach((item) => {
+        const cartItem = document.createElement("div");
+        cartItem.className = "cart-item flex items-center p-2 mb-1 rounded-md shadow-sm";
 
-      cartItem.innerHTML = `
+        // ----- LÍNEA MODIFICADA -----
+        // Usamos la imagen real del item si existe.
+        const imageUrl = item.imagen_url
+          ? `${BASE_URL}/public/${item.imagen_url}`
+          : `https://placehold.co/50x50/334155/E2E8F0?text=No+Img`;
+
+        let priceTypeLabel = "";
+        if (item.tipo_precio_aplicado === "Especial") {
+          priceTypeLabel = '<span class="text-xxs text-yellow-400">Especial</span> ';
+        } else if (item.tipo_precio_aplicado === "Guardado") {
+          priceTypeLabel = '<span class="text-xxs text-yellow-400">Guardado</span> ';
+        } else if (String(item.tipo_precio_aplicado || '').startsWith('P')) {
+          priceTypeLabel = `<span class="text-xxs text-blue-400">${item.tipo_precio_aplicado}</span> `;
+        }
+
+        cartItem.innerHTML = `
           <img src="${imageUrl}" alt="${item.nombre}" class="cart-item-image w-10 h-10 object-cover rounded mr-2">
           <div class="flex-1">
               <p class="text-sm font-semibold text-[var(--color-text-primary)] truncate">${item.nombre}</p>
+              ${item.descripcion !== undefined && item.descripcion !== null
+            ? `<p class="text-xxs italic text-[var(--color-text-secondary)]">
+                <span class="editable-desc" data-id="${item.id}">
+                  ${item.descripcion === "" ? "[sin descripción]" : item.descripcion}
+                </span>
+              </p>`
+            : ""
+          }
               <p class="text-xs text-[var(--color-text-secondary)]">
                   ${priceTypeLabel}
                   <select class="price-level-select bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded text-xs mr-2" data-id="${item.id}">
@@ -290,58 +304,51 @@ function renderCart() {
                   <i class="fas fa-trash-alt"></i>
               </button>
           </div>`;
-      cartItemsContainer.appendChild(cartItem);
-    });
+        cartItemsContainer.appendChild(cartItem);
+      });
+    }
+    updateTotals();
+    toggleSaveButton();
+    addPriceEditListeners();
+    addDescEditListeners();
+
   }
-  updateTotals();
-  toggleSaveButton();
-  addPriceEditListeners();
-}
   async function addProductToCart(productId) {
     const productInfo = allProducts.find((p) => p.id == productId);
+    if (!productInfo) { showToast("Producto no encontrado.", "error"); return; }
+    if (productInfo.stock <= 0 && !allowNegativeStock) { showToast("Producto agotado.", "error"); return; }
 
-    if (!productInfo) {
-      showToast("Producto no encontrado.", "error");
-      return;
-    }
-    if (productInfo.stock <= 0 && !allowNegativeStock) {
-      showToast("Producto agotado.", "error");
-      return;
-    }
-
-    const cartItem = cart.find((item) => item.id == productId);
-
-    if (cartItem) {
-      if (allowNegativeStock || (productInfo && cartItem.quantity < productInfo.stock)) {
-        cartItem.quantity++;
-        renderCart();
-      } else {
-        showToast("Stock máximo alcanzado en el carrito.", "error");
-      }
+    const existing = cart.find((item) => item.id == productId);
+    if (existing) {
+      if (allowNegativeStock || (productInfo && existing.quantity < productInfo.stock)) {
+        existing.quantity++; renderCart();
+      } else { showToast("Stock máximo alcanzado en el carrito.", "error"); }
       return;
     }
 
     try {
       const response = await fetch(`${BASE_URL}/getProductForPOS?id_producto=${productId}&id_cliente=${selectedClient.id}`);
       const result = await response.json();
-      if (result.success) {
-        const product = result.data;
-
-        if ((product.stock || 0) <= 0 && !allowNegativeStock) {
-          showToast("Producto sin stock.", "error");
-          return;
-        }
-
-        if (product.tipo_precio_aplicado !== "Especial") {
-          product.precio_final = getPriceForProduct(product, currentPriceLevel);
-          product.tipo_precio_aplicado = `P${currentPriceLevel}`;
-        }
-        cart.push({ ...product, quantity: 1, id: product.id });
-        renderCart();
-      } else {
-        showToast(result.message, "error");
+      if (!result.success) { showToast(result.message, "error"); return; }
+      const product = result.data;
+      if ((product.stock || 0) <= 0 && !allowNegativeStock) { showToast("Producto sin stock.", "error"); return; }
+      if (product.tipo_precio_aplicado !== "Especial") {
+        product.precio_final = getPriceForProduct(product, currentPriceLevel);
+        product.tipo_precio_aplicado = `P${currentPriceLevel}`;
       }
-    } catch (error) {
+
+      // Sólo productos que empiezan con '#'
+      const startsHash = (s) => String(s || "").trim().startsWith("#");
+      let descripcion = null;
+      if (startsHash(product.nombre) || startsHash(product.sku)) {
+        const typed = await promptForDescription();
+        if (typed === null) return; // cancelado
+        descripcion = typed;        // '' => guardaremos NULL en backend
+      }
+
+      cart.push({ ...product, quantity: 1, id: product.id, descripcion });
+      renderCart();
+    } catch (_) {
       showToast("Error de conexión al añadir el producto.", "error");
     }
   }
@@ -520,6 +527,21 @@ function renderCart() {
       });
     });
   }
+
+  function addDescEditListeners() {
+    document.querySelectorAll(".editable-desc").forEach((span) => {
+      if (span.dataset.hasListener === "true") return;
+      span.dataset.hasListener = "true";
+      span.addEventListener("click", async () => {
+        const id = span.dataset.id;
+        const item = cart.find((i) => String(i.id) === String(id));
+        if (!item) return;
+        const typed = await promptForDescription(item.descripcion || "");
+        if (typed !== null) { item.descripcion = typed; renderCart(); }
+      });
+    });
+  }
+
 
   function populateAddresses(addresses) {
     addressSelect.innerHTML = "";
@@ -1025,9 +1047,30 @@ function renderCart() {
       tipo_precio_aplicado: "Guardado",
       sku: item.sku || null,
       codigo_barras: item.codigo_barras || null,
+      descripcion: item.descripcion || null,
     }));
     renderCart();
     showToast(`Venta #${currentSaleId} cargada en el POS.`, "info");
+  }
+
+  function promptForDescription(defaultText = "") {
+    return new Promise((resolve) => {
+      const close = (val = null) => { descModal.classList.add("hidden"); resolve(val); };
+      const onConfirm = () => { const v = descInput.value.trim(); cleanup(); close(v || null); };
+      const onCancel = () => { cleanup(); close(null); };
+      const onKey = (e) => { if (e.key === "Enter") onConfirm(); if (e.key === "Escape") onCancel(); };
+      function cleanup() {
+        descConfirmBtn.removeEventListener("click", onConfirm);
+        descCancelBtn.removeEventListener("click", onCancel);
+        descInput.removeEventListener("keydown", onKey);
+      }
+      descInput.value = defaultText || "";
+      descModal.classList.remove("hidden");
+      setTimeout(() => descInput.focus(), 0);
+      descConfirmBtn.addEventListener("click", onConfirm);
+      descCancelBtn.addEventListener("click", onCancel);
+      descInput.addEventListener("keydown", onKey);
+    });
   }
 
 
